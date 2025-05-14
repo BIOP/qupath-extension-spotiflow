@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package qupath.ext.biop.cellpose;
+package qupath.ext.biop.spotiflow;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -112,9 +112,9 @@ import java.util.stream.IntStream;
  * @author Olivier Burri
  * @author Pete Bankhead
  */
-public class Cellpose2D {
+public class Sptiflow {
 
-    private final static Logger logger = LoggerFactory.getLogger(Cellpose2D.class);
+    private final static Logger logger = LoggerFactory.getLogger(Sptiflow.class);
 
     public ImageOp extendChannelOp;
 
@@ -142,7 +142,7 @@ public class Cellpose2D {
     public boolean useTestDir;
     public String outputModelName;
     public File groundTruthDirectory;
-    protected CellposeSetup cellposeSetup = CellposeSetup.getInstance();
+    protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     // Parameters and parameter values that will be passed to the cellpose command
     protected LinkedHashMap<String, String> parameters;
     // No defaults. All should be handled by the builder
@@ -164,19 +164,19 @@ public class Cellpose2D {
      * @param modelPath name or path to model to use for prediction.
      * @return this builder
      */
-    public static CellposeBuilder builder(String modelPath) {
-        return new CellposeBuilder(modelPath);
+    public static SpotiflowBuilder builder(String modelPath) {
+        return new SpotiflowBuilder(modelPath);
     }
 
     /**
      * Load a previously serialized builder.
-     * See {@link CellposeBuilder#CellposeBuilder(File)} and {@link CellposeBuilder#saveBuilder(String)}
+     * See {@link SpotiflowBuilder#SpotiflowBuilder(File)} and {@link SpotiflowBuilder#saveBuilder(String)}
      *
      * @param builderPath path to the builder JSON file.
      * @return this builder
      */
-    public static CellposeBuilder builder(File builderPath) {
-        return new CellposeBuilder(builderPath);
+    public static SpotiflowBuilder builder(File builderPath) {
+        return new SpotiflowBuilder(builderPath);
     }
 
     /**
@@ -441,7 +441,7 @@ public class Cellpose2D {
                 logger.info("Resolving cell overlaps for {}", parent);
                 if (creatorFun != null) {
                     // It's awkward, but we need to temporarily convert to cells and back
-                    var cells = finalObjects.stream().map(Cellpose2D::objectToCell).collect(Collectors.toList());
+                    var cells = finalObjects.stream().map(Sptiflow::objectToCell).collect(Collectors.toList());
                     cells = CellTools.constrainCellOverlaps(cells);
                     finalObjects = cells.stream().map(c -> cellToObject(c, creatorFun)).collect(Collectors.toList());
                 } else
@@ -701,22 +701,22 @@ public class Cellpose2D {
     private VirtualEnvironmentRunner getVirtualEnvironmentRunner() {
 
         // Make sure that cellposeSetup.getCellposePythonPath() is not empty
-        if (cellposeSetup.getCellposePythonPath().isEmpty()) {
+        if (spotiflowSetup.getCellposePythonPath().isEmpty()) {
             throw new IllegalStateException("Cellpose python path is empty. Please set it in Edit > Preferences");
         }
 
         // Change the envType based on the setup options
         VirtualEnvironmentRunner.EnvType type = VirtualEnvironmentRunner.EnvType.EXE;
         String condaPath = null;
-        if (!cellposeSetup.getCondaPath().isEmpty()) {
+        if (!spotiflowSetup.getCondaPath().isEmpty()) {
             type = VirtualEnvironmentRunner.EnvType.CONDA;
-            condaPath = cellposeSetup.getCondaPath();
+            condaPath = spotiflowSetup.getCondaPath();
         }
 
         // Set python executable to switch between Omnipose and Cellpose
-        String pythonPath = cellposeSetup.getCellposePythonPath();
-        if (this.parameters.containsKey("omni") && !cellposeSetup.getOmniposePythonPath().isEmpty())
-            pythonPath = cellposeSetup.getOmniposePythonPath();
+        String pythonPath = spotiflowSetup.getCellposePythonPath();
+        if (this.parameters.containsKey("omni") && !spotiflowSetup.getOmniposePythonPath().isEmpty())
+            pythonPath = spotiflowSetup.getOmniposePythonPath();
 
 
         return new VirtualEnvironmentRunner(pythonPath, type, condaPath, this.getClass().getSimpleName());
@@ -1002,7 +1002,7 @@ public class Cellpose2D {
         if (!qcPythonFile.exists()) {
             logger.warn("File {} was not found in {}.\nPlease download it from {}", qcPythonFile.getName(),
                     extensionsDir.getAbsolutePath(),
-                    new CellposeExtension().getRepository().getUrlString());
+                    new SpotiflowExtension().getRepository().getUrlString());
             return null;
         }
 

@@ -1,16 +1,16 @@
-package qupath.ext.biop.cellpose;
+package qupath.ext.biop.spotiflow;
 
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.File;
 
-public class CellposeSetup {
-    private static final CellposeSetup instance = new CellposeSetup();
+public class SpotiflowSetup {
+    private static final SpotiflowSetup instance = new SpotiflowSetup();
     private String cellposePythonPath = null;
     private String omniposePythonPath = null;
     private String condaPath = null;
 
-    public static CellposeSetup getInstance() {
+    public static SpotiflowSetup getInstance() {
         return instance;
     }
 

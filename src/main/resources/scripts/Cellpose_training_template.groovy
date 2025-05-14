@@ -17,7 +17,7 @@
  */
 
 // First we need to create a Cellpose2D builder and add all parameters that we want to use for training
-def cellpose = Cellpose2D.builder( "cyto3" )    // Can choose "None" if you want to train from scratch
+def cellpose = Sptiflow.builder( "cyto3" )    // Can choose "None" if you want to train from scratch
         .channels( "DAPI", "CY3" )                         // or work with .cellposeChannels( channel1, channel2 ) and follow the cellpose way
 //                .preprocess( ImageOps.Filters.gaussianBlur( 1 ) ) // Optional preprocessing QuPath Ops
 //                .epochs(500)                                      // Optional: will default to 500
@@ -53,4 +53,5 @@ cellpose.showTrainingGraph()
 
 println "Training Script Finished"
 
-import qupath.ext.biop.cellpose.Cellpose2D
+
+import qupath.ext.biop.spotiflow.Sptiflow

@@ -15,7 +15,7 @@
  */
 
 
-package qupath.ext.biop.cellpose;
+package qupath.ext.biop.spotiflow;
 
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;

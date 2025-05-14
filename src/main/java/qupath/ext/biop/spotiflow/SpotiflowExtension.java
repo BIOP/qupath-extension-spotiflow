@@ -1,4 +1,4 @@
-package qupath.ext.biop.cellpose;
+package qupath.ext.biop.spotiflow;
 
 import javafx.beans.property.StringProperty;
 import org.controlsfx.control.PropertySheet;
@@ -13,7 +13,6 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 
-import java.io.File;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
 
@@ -24,9 +23,9 @@ import java.util.LinkedHashMap;
  *
  * @author Olivier Burri
  */
-public class CellposeExtension implements QuPathExtension, GitHubProject {
+public class SpotiflowExtension implements QuPathExtension, GitHubProject {
 
-    private static final Logger logger = LoggerFactory.getLogger(CellposeExtension.class);
+    private static final Logger logger = LoggerFactory.getLogger(SpotiflowExtension.class);
     private boolean isInstalled = false;
 
     private static final LinkedHashMap<String, String> SCRIPTS = new LinkedHashMap<>() {{
@@ -49,7 +48,7 @@ public class CellposeExtension implements QuPathExtension, GitHubProject {
         SCRIPTS.entrySet().forEach(entry -> {
             String name = entry.getValue();
             String command = entry.getKey();
-            try (InputStream stream = CellposeExtension.class.getClassLoader().getResourceAsStream(name)) {
+            try (InputStream stream = SpotiflowExtension.class.getClassLoader().getResourceAsStream(name)) {
                 String script = new String(stream.readAllBytes(), "UTF-8");
                 if (script != null) {
                     MenuTools.addMenuItems(
@@ -61,7 +60,7 @@ public class CellposeExtension implements QuPathExtension, GitHubProject {
             }
         });
         // Get a copy of the cellpose options
-        CellposeSetup options = CellposeSetup.getInstance();
+        SpotiflowSetup options = SpotiflowSetup.getInstance();
 
 
         // Create the options we need

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package qupath.ext.biop.cellpose;
+package qupath.ext.biop.spotiflow;
 
 import com.google.gson.Gson;
 import org.slf4j.Logger;
@@ -39,7 +39,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 
-import static qupath.ext.biop.cellpose.OpCreators.TileOpCreator;
+import static qupath.ext.biop.spotiflow.OpCreators.TileOpCreator;
 
 /**
  * Cell detection based on the following method:
@@ -57,10 +57,10 @@ import static qupath.ext.biop.cellpose.OpCreators.TileOpCreator;
  *
  * @author Pete Bankhead (this implementation, but based on the others)
  */
-public class CellposeBuilder {
+public class SpotiflowBuilder {
 
-    private static final Logger logger = LoggerFactory.getLogger(CellposeBuilder.class);
-    private final transient CellposeSetup cellposeSetup;
+    private static final Logger logger = LoggerFactory.getLogger(SpotiflowBuilder.class);
+    private final transient SpotiflowSetup spotiflowSetup;
 
     private final List<ImageOp> preprocessing = new ArrayList<>();
     private final LinkedHashMap<String, String> cellposeParameters = new LinkedHashMap<>();
@@ -105,21 +105,21 @@ public class CellposeBuilder {
      *
      * @param builderFile the path to a serialized JSON builder made with {@link #saveBuilder(String)}
      */
-    protected CellposeBuilder(File builderFile) {
+    protected SpotiflowBuilder(File builderFile) {
 
         // Need to know setup options, which are transient
-        this.cellposeSetup = CellposeSetup.getInstance();
+        this.spotiflowSetup = SpotiflowSetup.getInstance();
 
         Gson gson = GsonTools.getInstance();
         try {
-            gson.fromJson(new FileReader(builderFile), CellposeBuilder.class);
+            gson.fromJson(new FileReader(builderFile), SpotiflowBuilder.class);
             logger.info("Builder parameters loaded from {}", builderFile);
         } catch (FileNotFoundException e) {
             logger.error("Could not load builder from " + builderFile.getAbsolutePath(), e);
         }
     }
 
-    public CellposeBuilder extendChannelOp(ImageOp extendChannelOp) {
+    public SpotiflowBuilder extendChannelOp(ImageOp extendChannelOp) {
         this.extendChannelOp = extendChannelOp;
         return this;
     }
@@ -128,13 +128,13 @@ public class CellposeBuilder {
      *
      * @param modelPath the model name or path
      */
-    protected CellposeBuilder(String modelPath) {
+    protected SpotiflowBuilder(String modelPath) {
 
         // Initialize all CellposeBuilderOld
         this.modelNameOrPath = modelPath;
 
         // Need to know setup options in order to guide the user in case of version inconsistency
-        this.cellposeSetup = CellposeSetup.getInstance();
+        this.spotiflowSetup = SpotiflowSetup.getInstance();
 
     }
 
@@ -143,7 +143,7 @@ public class CellposeBuilder {
      * @param useGPU add or remove the option
      * @return this builder
      */
-    public CellposeBuilder useGPU( boolean useGPU ) {
+    public SpotiflowBuilder useGPU(boolean useGPU ) {
         this.useGPU = useGPU;
 
         return this;
@@ -154,7 +154,7 @@ public class CellposeBuilder {
      * @param useTestDir add or remove the option
      * @return this builder
      */
-    public CellposeBuilder useTestDir( boolean useTestDir ) {
+    public SpotiflowBuilder useTestDir(boolean useTestDir ) {
         this.useTestDir = useTestDir;
 
         return this;
@@ -165,7 +165,7 @@ public class CellposeBuilder {
      * @param saveTrainingImages false to not resave training images
      * @return this builder
      */
-    public CellposeBuilder saveTrainingImages( boolean saveTrainingImages ) {
+    public SpotiflowBuilder saveTrainingImages(boolean saveTrainingImages ) {
         this.saveTrainingImages = saveTrainingImages;
 
         return this;
@@ -175,7 +175,7 @@ public class CellposeBuilder {
      * Specify the training directory
      *
      */
-    public CellposeBuilder groundTruthDirectory(File groundTruthDirectory) {
+    public SpotiflowBuilder groundTruthDirectory(File groundTruthDirectory) {
         this.groundTruthDirectory = groundTruthDirectory;
         return this;
     }
@@ -183,7 +183,7 @@ public class CellposeBuilder {
     /**
      * Specify the temporary directory
      */
-    public CellposeBuilder tempDirectory(File trainingDirectory) {
+    public SpotiflowBuilder tempDirectory(File trainingDirectory) {
         this.tempDirectory = trainingDirectory;
         return this;
     }
@@ -196,7 +196,7 @@ public class CellposeBuilder {
      * @param nThreads the number of threads to use
      * @return this builder
      */
-    public CellposeBuilder nThreads(int nThreads) {
+    public SpotiflowBuilder nThreads(int nThreads) {
         this.nThreads = nThreads;
         return this;
     }
@@ -205,7 +205,7 @@ public class CellposeBuilder {
      * Use an asynchronous method to read the results from the cellpose as it writes files
      * Can result in faster processing. !!EXPERIMENTAL!!
      */
-    public CellposeBuilder readResultsAsynchronously() {
+    public SpotiflowBuilder readResultsAsynchronously() {
         this.doReadResultsAsynchronously = true;
         return this;
     }
@@ -221,7 +221,7 @@ public class CellposeBuilder {
      * @param pixelSize Pixel size in microns for the analysis
      * @return this builder
      */
-    public CellposeBuilder pixelSize(double pixelSize) {
+    public SpotiflowBuilder pixelSize(double pixelSize) {
         this.pixelSize = pixelSize;
         return this;
     }
@@ -232,7 +232,7 @@ public class CellposeBuilder {
      * @param ops a series of ImageOps to apply to the input image
      * @return this builder
      */
-    public CellposeBuilder preprocess(ImageOp... ops) {
+    public SpotiflowBuilder preprocess(ImageOp... ops) {
         Collections.addAll(this.preprocessing, ops);
         return this;
     }
@@ -250,7 +250,7 @@ public class CellposeBuilder {
      * @param global preprocessing operation
      * @return this builder
      */
-    public CellposeBuilder preprocessGlobal(TileOpCreator global) {
+    public SpotiflowBuilder preprocessGlobal(TileOpCreator global) {
         this.globalPreprocessing = global;
         return this;
     }
@@ -265,7 +265,7 @@ public class CellposeBuilder {
      * @param distance simplify distance threshold; set &le; 0 to turn off additional simplification
      * @return this builder
      */
-    public CellposeBuilder simplify(double distance) {
+    public SpotiflowBuilder simplify(double distance) {
         this.simplifyDistance = distance;
         return this;
     }
@@ -278,7 +278,7 @@ public class CellposeBuilder {
      * @param channels 0-based indices of the channels to use
      * @return this builder
      */
-    public CellposeBuilder channels(int... channels) {
+    public SpotiflowBuilder channels(int... channels) {
         return channels(Arrays.stream(channels)
                 .mapToObj(c -> ColorTransforms.createChannelExtractor(c))
                 .toArray(ColorTransform[]::new));
@@ -292,7 +292,7 @@ public class CellposeBuilder {
      * @param channels 0-based indices of the channels to use
      * @return this builder
      */
-    public CellposeBuilder channels(String... channels) {
+    public SpotiflowBuilder channels(String... channels) {
         return channels(Arrays.stream(channels)
                 .map(c -> ColorTransforms.createChannelExtractor(c))
                 .toArray(ColorTransform[]::new));
@@ -306,7 +306,7 @@ public class CellposeBuilder {
      * @param channels the channels to use
      * @return this builder
      */
-    public CellposeBuilder channels(ColorTransform... channels) {
+    public SpotiflowBuilder channels(ColorTransform... channels) {
         this.channels = channels.clone();
         return this;
     }
@@ -323,7 +323,7 @@ public class CellposeBuilder {
      * @param distance expansion distance in microns
      * @return this builder
      */
-    public CellposeBuilder cellExpansion(double distance) {
+    public SpotiflowBuilder cellExpansion(double distance) {
         this.cellExpansion = distance;
         return this;
     }
@@ -336,7 +336,7 @@ public class CellposeBuilder {
      * @param scale
      * @return this builder
      */
-    public CellposeBuilder cellConstrainScale(double scale) {
+    public SpotiflowBuilder cellConstrainScale(double scale) {
         this.cellConstrainScale = scale;
         return this;
     }
@@ -347,7 +347,7 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder createAnnotations() {
+    public SpotiflowBuilder createAnnotations() {
         this.creatorFun = r -> PathObjects.createAnnotationObject(r);
         return this;
     }
@@ -358,7 +358,7 @@ public class CellposeBuilder {
      * @param pathClass the classification to give to all detected PathObjects
      * @return this builder
      */
-    public CellposeBuilder classify(PathClass pathClass) {
+    public SpotiflowBuilder classify(PathClass pathClass) {
         this.globalPathClass = pathClass;
         return this;
     }
@@ -370,7 +370,7 @@ public class CellposeBuilder {
      * @param pathClassName the classification to give to all detected PathObjects as a String
      * @return this builder
      */
-    public CellposeBuilder classify(String pathClassName) {
+    public SpotiflowBuilder classify(String pathClassName) {
         return classify(PathClass.fromString(pathClassName, null));
     }
 
@@ -380,7 +380,7 @@ public class CellposeBuilder {
      * @param ignore
      * @return this builder
      */
-    public CellposeBuilder ignoreCellOverlaps(boolean ignore) {
+    public SpotiflowBuilder ignoreCellOverlaps(boolean ignore) {
         this.ignoreCellOverlaps = ignore;
         return this;
     }
@@ -391,7 +391,7 @@ public class CellposeBuilder {
      * @param constrainToParent
      * @return this builder
      */
-    public CellposeBuilder constrainToParent(boolean constrainToParent) {
+    public SpotiflowBuilder constrainToParent(boolean constrainToParent) {
         this.constrainToParent = constrainToParent;
         return this;
     }
@@ -401,7 +401,7 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder measureIntensity() {
+    public SpotiflowBuilder measureIntensity() {
         this.measurements = Arrays.asList(
                 Measurements.MEAN,
                 Measurements.MEDIAN,
@@ -417,7 +417,7 @@ public class CellposeBuilder {
      * @param measurements the measurements to make
      * @return this builder
      */
-    public CellposeBuilder measureIntensity(Collection<Measurements> measurements) {
+    public SpotiflowBuilder measureIntensity(Collection<Measurements> measurements) {
         this.measurements = new ArrayList<>(measurements);
         return this;
     }
@@ -427,7 +427,7 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder measureShape() {
+    public SpotiflowBuilder measureShape() {
         measureShape = true;
         return this;
     }
@@ -439,7 +439,7 @@ public class CellposeBuilder {
      * @param compartments cell compartments for intensity measurements
      * @return this builder
      */
-    public CellposeBuilder compartments(Compartments... compartments) {
+    public SpotiflowBuilder compartments(Compartments... compartments) {
         this.compartments = Arrays.asList(compartments);
         return this;
     }
@@ -452,7 +452,7 @@ public class CellposeBuilder {
      * @param tileSize the width and height of each tile for exporting images
      * @return this builder
      */
-    public CellposeBuilder tileSize(int tileSize) {
+    public SpotiflowBuilder tileSize(int tileSize) {
         return tileSize(tileSize, tileSize);
     }
 
@@ -465,7 +465,7 @@ public class CellposeBuilder {
      * @param tileHeight the height of each tile for exporting images
      * @return this builder
      */
-    public CellposeBuilder tileSize(int tileWidth, int tileHeight) {
+    public SpotiflowBuilder tileSize(int tileWidth, int tileHeight) {
         this.tileWidth = tileWidth;
         this.tileHeight = tileHeight;
         return this;
@@ -488,7 +488,7 @@ public class CellposeBuilder {
      * @return this builder
      * @see #normalizePercentiles(double, double, boolean, double)
      */
-    public CellposeBuilder normalizePercentiles(double min, double max) {
+    public SpotiflowBuilder normalizePercentiles(double min, double max) {
         return normalizePercentiles(min, max, true, 0.0);
     }
 
@@ -511,7 +511,7 @@ public class CellposeBuilder {
      * @return this builder
      * @since v0.4.0
      */
-    public CellposeBuilder normalizePercentiles(double min, double max, boolean perChannel, double eps) {
+    public SpotiflowBuilder normalizePercentiles(double min, double max, boolean perChannel, double eps) {
         this.preprocessing.add(ImageOps.Normalize.percentile(min, max, perChannel, eps));
         return this;
     }
@@ -530,7 +530,7 @@ public class CellposeBuilder {
      * @see #inputSubtract(double...)
      * @see #inputScale(double...)
      */
-    public CellposeBuilder inputAdd(double... values) {
+    public SpotiflowBuilder inputAdd(double... values) {
         this.preprocessing.add(ImageOps.Core.add(values));
         return this;
     }
@@ -548,7 +548,7 @@ public class CellposeBuilder {
      * @see #inputScale(double...)
      * @since v0.4.0
      */
-    public CellposeBuilder inputSubtract(double... values) {
+    public SpotiflowBuilder inputSubtract(double... values) {
         this.preprocessing.add(ImageOps.Core.subtract(values));
         return this;
     }
@@ -566,7 +566,7 @@ public class CellposeBuilder {
      * @see #inputAdd(double...)
      * @see #inputSubtract(double...)
      */
-    public CellposeBuilder inputScale(double... values) {
+    public SpotiflowBuilder inputScale(double... values) {
         this.preprocessing.add(ImageOps.Core.multiply(values));
         return this;
     }
@@ -582,7 +582,7 @@ public class CellposeBuilder {
      * @return this builder
      * @see <a href="https://cellpose.readthedocs.io/en/latest/command.html#input-settings">the cellpose documentation</a> for a list of available flags
      */
-    public CellposeBuilder addParameter(String flagName, String flagValue) {
+    public SpotiflowBuilder addParameter(String flagName, String flagValue) {
         this.cellposeParameters.put(flagName, flagValue);
         return this;
 
@@ -595,7 +595,7 @@ public class CellposeBuilder {
      * @return
      * @see <a href="https://cellpose.readthedocs.io/en/latest/command.html#input-settings">the cellpose documentation</a> for a list of available flags
      */
-    public CellposeBuilder addParameter(String flagName) {
+    public SpotiflowBuilder addParameter(String flagName) {
         addParameter(flagName, null);
         return this;
     }
@@ -605,8 +605,8 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder useOmnipose() {
-        if (cellposeSetup.getOmniposePythonPath() == "")
+    public SpotiflowBuilder useOmnipose() {
+        if (spotiflowSetup.getOmniposePythonPath() == "")
             logger.warn("Omnipose environment path not set. Using cellpose path instead.");
         addParameter("omni");
         return this;
@@ -617,7 +617,7 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder excludeEdges() {
+    public SpotiflowBuilder excludeEdges() {
         addParameter("exclude_on_edges");
         return this;
     }
@@ -628,7 +628,7 @@ public class CellposeBuilder {
      * @param channel2 --chan2 value passed to cellpose/omnipose
      * @return this builder
      */
-    public CellposeBuilder cellposeChannels(Integer channel1, Integer channel2) {
+    public SpotiflowBuilder cellposeChannels(Integer channel1, Integer channel2) {
         addParameter("chan", channel1.toString());
         addParameter("chan2", channel2.toString());
         return this;
@@ -640,10 +640,10 @@ public class CellposeBuilder {
      *
      * @param threshold cell/nuclei masks threshold, between -6 and +6
      * @return this builder
-     * @deprecated use {@link CellposeBuilder#cellprobThreshold(Double)}
+     * @deprecated use {@link SpotiflowBuilder#cellprobThreshold(Double)}
      */
     @Deprecated
-    public CellposeBuilder maskThreshold(Double threshold) {
+    public SpotiflowBuilder maskThreshold(Double threshold) {
         logger.warn("'maskThreshold() is deprecated. Replace with cellprobThreshold() in the builder.");
         addParameter("cellprob_threshold", threshold.toString());
         return this;
@@ -656,7 +656,7 @@ public class CellposeBuilder {
      * @param threshold cell/nuclei masks threshold, between -6 and +6
      * @return this builder
      */
-    public CellposeBuilder cellprobThreshold(Double threshold) {
+    public SpotiflowBuilder cellprobThreshold(Double threshold) {
         addParameter("cellprob_threshold", threshold.toString());
         return this;
     }
@@ -667,7 +667,7 @@ public class CellposeBuilder {
      * @param threshold flow threshold (default 0.0)
      * @return this builder
      */
-    public CellposeBuilder flowThreshold(Double threshold) {
+    public SpotiflowBuilder flowThreshold(Double threshold) {
         addParameter("flow_threshold", threshold.toString());
         return this;
     }
@@ -679,7 +679,7 @@ public class CellposeBuilder {
      * @param diameter in pixels
      * @return this builder
      */
-    public CellposeBuilder diameter(Double diameter) {
+    public SpotiflowBuilder diameter(Double diameter) {
         addParameter("diameter", diameter.toString());
         return this;
     }
@@ -692,7 +692,7 @@ public class CellposeBuilder {
      * @param modelDir a directory (does not need to exist yet) where to save the cellpose model
      * @return this Builder
      */
-    public CellposeBuilder modelDirectory(File modelDir) {
+    public SpotiflowBuilder modelDirectory(File modelDir) {
         this.modelDirectory = modelDir;
         return this;
     }
@@ -703,7 +703,7 @@ public class CellposeBuilder {
      * @param nEpochs number of epochs for training
      * @return this Builder
      */
-    public CellposeBuilder epochs(Integer nEpochs) {
+    public SpotiflowBuilder epochs(Integer nEpochs) {
         addParameter("n_epochs", nEpochs.toString());
         return this;
     }
@@ -714,7 +714,7 @@ public class CellposeBuilder {
      * @param learningRate learning rate per epoch
      * @return this Builder
      */
-    public CellposeBuilder learningRate(Double learningRate) {
+    public SpotiflowBuilder learningRate(Double learningRate) {
         addParameter("learning_rate", learningRate.toString());
         return this;
     }
@@ -725,7 +725,7 @@ public class CellposeBuilder {
      * @param batchSize batch size for training
      * @return this Builder
      */
-    public CellposeBuilder batchSize(Integer batchSize) {
+    public SpotiflowBuilder batchSize(Integer batchSize) {
         addParameter("batch_size", batchSize.toString());
         return this;
     }
@@ -736,7 +736,7 @@ public class CellposeBuilder {
      * @param n minimum number of labels per training image
      * @return this builder
      */
-    public CellposeBuilder minTrainMasks(Integer n) {
+    public SpotiflowBuilder minTrainMasks(Integer n) {
         addParameter("min_train_masks", n.toString());
         return this;
     }
@@ -747,7 +747,7 @@ public class CellposeBuilder {
      * @param name // A name to append to the JSON file. Keep it meaningful for your needs
      * @return this builder
      */
-    public CellposeBuilder saveBuilder(String name) {
+    public SpotiflowBuilder saveBuilder(String name) {
         this.saveBuilder = true;
         this.builderName = name;
         return this;
@@ -760,7 +760,7 @@ public class CellposeBuilder {
      * @param overlap the overlap, in pixels
      * @return this builder
      */
-    public CellposeBuilder setOverlap(int overlap) {
+    public SpotiflowBuilder setOverlap(int overlap) {
         this.overlap = overlap;
         return this;
     }
@@ -773,7 +773,7 @@ public class CellposeBuilder {
      * @param normDownsample a large downsample for the computation to be efficient over the whole image
      * @return this builder
      */
-    public CellposeBuilder normalizePercentilesGlobal(double percentileMin, double percentileMax, double normDownsample) {
+    public SpotiflowBuilder normalizePercentilesGlobal(double percentileMin, double percentileMax, double normDownsample) {
 
         TileOpCreator normOp = new OpCreators.ImageNormalizationBuilder().percentiles(percentileMin, percentileMax)
                 .perChannel(true)
@@ -793,7 +793,7 @@ public class CellposeBuilder {
      *
      * @return this builder
      */
-    public CellposeBuilder noCellposeNormalization() {
+    public SpotiflowBuilder noCellposeNormalization() {
         return this.addParameter("no_norm");
     }
 
@@ -803,17 +803,17 @@ public class CellposeBuilder {
      * @param outputName the prefix os the cellpose model name
      * @return this builder
      */
-    public CellposeBuilder setOutputModelName(String outputName) {
+    public SpotiflowBuilder setOutputModelName(String outputName) {
         this.outputModelName = outputName;
         return this;
     }
     /**
-     * Create a {@link Cellpose2D}, all ready for detection.
+     * Create a {@link Sptiflow}, all ready for detection.
      *
-     * @return a new {@link Cellpose2D} instance
+     * @return a new {@link Sptiflow} instance
      */
-    public Cellpose2D build() {
-        Cellpose2D cellpose = new Cellpose2D();
+    public Sptiflow build() {
+        Sptiflow cellpose = new Sptiflow();
 
         // Give it the number of threads to use
         cellpose.nThreads = nThreads;
@@ -832,7 +832,7 @@ public class CellposeBuilder {
         cellpose.model = this.modelNameOrPath;
 
         // Assign current cellpose extension settings
-        cellpose.cellposeSetup = this.cellposeSetup;
+        cellpose.spotiflowSetup = this.spotiflowSetup;
 
         // Pick up info on project location and where the data will be stored for training and inference
         File quPathProjectDir = QP.getProject().getPath().getParent().toFile();
@@ -924,7 +924,7 @@ public class CellposeBuilder {
 
             try {
                 FileWriter fw = new FileWriter(savePath);
-                gson.toJson(this, CellposeBuilder.class, fw);
+                gson.toJson(this, SpotiflowBuilder.class, fw);
                 fw.flush();
                 fw.close();
                 logger.info("Cellpose Builder serialized and saved to {}", savePath);

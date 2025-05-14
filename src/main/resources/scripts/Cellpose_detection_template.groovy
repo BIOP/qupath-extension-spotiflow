@@ -21,7 +21,7 @@
 // Other models for Cellpose https://cellpose.readthedocs.io/en/latest/models.html
 // And for Omnipose: https://omnipose.readthedocs.io/models.html
 def pathModel = 'cyto3'
-def cellpose = Cellpose2D.builder( pathModel )
+def cellpose = Sptiflow.builder( pathModel )
         .pixelSize( 0.5 )                  // Resolution for detection in um
         .channels( 'DAPI' )	               // Select detection channel(s)
 //        .tempDirectory( new File( '/tmp' ) ) // Temporary directory to export images to. defaults to 'cellpose-temp' inside the QuPath Project
@@ -61,4 +61,5 @@ cellpose.detectObjects( imageData, pathObjects )
 
 println 'Cellpose detection script done'
 
-import qupath.ext.biop.cellpose.Cellpose2D
+
+import qupath.ext.biop.spotiflow.Sptiflow

@@ -20,7 +20,7 @@ clearDetections()
 
 // Create a Cellpose detectors for cyto and nuclei
 def pathModel_cyto = 'cyto3'
-def cellpose_cyto = Cellpose2D.builder( pathModel_cyto )
+def cellpose_cyto = Sptiflow.builder( pathModel_cyto )
         .channels( "HCS","DAPI" )
         .pixelSize( 0.3 )              // Resolution for detection
         .diameter(30 )                  // Median object diameter. Set to 0.0 for the `bact_omni` model or for automatic computation
@@ -29,7 +29,7 @@ def cellpose_cyto = Cellpose2D.builder( pathModel_cyto )
         .build()
 
 def pathModel_nuc = 'cyto3'
-def cellpose_nuc = Cellpose2D.builder( pathModel_nuc )
+def cellpose_nuc = Sptiflow.builder( pathModel_nuc )
         .channels("DAPI" )
         .pixelSize( 0.3 )              // Resolution for detection
         .diameter(10)                  // Median object diameter. Set to 0.0 for the `bact_omni` model or for automatic computation
@@ -77,5 +77,6 @@ println 'Done!'
 /*
  * imports
  */
-import qupath.ext.biop.cellpose.Cellpose2D
+
+import qupath.ext.biop.spotiflow.Sptiflow
 import qupath.lib.analysis.features.ObjectMeasurements
