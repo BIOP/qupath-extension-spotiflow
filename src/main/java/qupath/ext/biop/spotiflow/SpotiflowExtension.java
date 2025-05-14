@@ -29,15 +29,15 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
     private boolean isInstalled = false;
 
     private static final LinkedHashMap<String, String> SCRIPTS = new LinkedHashMap<>() {{
-        put("Cellpose training script template", "scripts/Cellpose_training_template.groovy");
-        put("Cellpose detection script template", "scripts/Cellpose_detection_template.groovy");
-        put("Detect nuclei and cells using Cellpose.groovy", "scripts/Detect_nuclei_and_cells_using_Cellpose.groovy");
-        put("Create Cellpose training and validation images", "scripts/Create_Cellpose_training_and_validation_images.groovy");
+       // put("Spotiflow training script template", "scripts/Spotiflow_training_template.groovy");
+        put("Spotiflow detection script template", "scripts/Spotiflow_detection_template.groovy");
+       // put("Detect nuclei and cells using Spotiflow.groovy", "scripts/Detect_nuclei_and_cells_using_Spotiflow.groovy");
+       // put("Create Spotiflow training and validation images", "scripts/Create_Spotiflow_training_and_validation_images.groovy");
     }};
 
     @Override
     public GitHubRepo getRepository() {
-        return GitHubRepo.create("Cellpose 2D QuPath Extension", "biop", "qupath-extension-cellpose");
+        return GitHubRepo.create("Spotiflow QuPath Extension", "biop", "qupath-extension-spotiflow");
     }
 
     @Override
@@ -52,7 +52,7 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
                 String script = new String(stream.readAllBytes(), "UTF-8");
                 if (script != null) {
                     MenuTools.addMenuItems(
-                            qupath.getMenu("Extensions>Cellpose", true),
+                            qupath.getMenu("Extensions>Spotiflow", true),
                             new Action(command, e -> openScript(qupath, script)));
                 }
             } catch (Exception e) {
@@ -64,54 +64,44 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
 
 
         // Create the options we need
-        StringProperty cellposePath = PathPrefs.createPersistentPreference("cellposePythonPath", "");
-        StringProperty omniposePath = PathPrefs.createPersistentPreference("omniposePythonPath", "");
+        StringProperty spotiflowPath = PathPrefs.createPersistentPreference("spotiflowPythonPath", "");
         StringProperty condaPath = PathPrefs.createPersistentPreference("condaPath", "");
 
         //Set options to current values
-        options.setCellposePythonPath(cellposePath.get());
-        options.setOmniposePythonPath(omniposePath.get());
+        options.setSpotiflowPythonPath(spotiflowPath.get());
         options.setCondaPath(condaPath.get());
 
         // Listen for property changes
-        cellposePath.addListener((v, o, n) -> options.setCellposePythonPath(n));
-        omniposePath.addListener((v, o, n) -> options.setOmniposePythonPath(n));
+        spotiflowPath.addListener((v, o, n) -> options.setSpotiflowPythonPath(n));
         condaPath.addListener((v, o, n) -> options.setCondaPath(n));
 
-        PropertySheet.Item cellposePathItem = new PropertyItemBuilder<>(cellposePath, String.class)
+        PropertySheet.Item spotiflowPathItem = new PropertyItemBuilder<>(spotiflowPath, String.class)
                 .propertyType(PropertyItemBuilder.PropertyType.GENERAL)
-                .name("Cellpose 'python.exe' location")
-                .category("Cellpose/Omnipose")
-                .description("Enter the full path to your cellpose environment, including 'python.exe'\nDo not include quotes (\') or double quotes (\") around the path.")
-                .build();
-
-        PropertySheet.Item omniposePathItem = new PropertyItemBuilder<>(omniposePath, String.class)
-                .propertyType(PropertyItemBuilder.PropertyType.GENERAL)
-                .name("Omnipose 'python.exe' location")
-                .category("Cellpose/Omnipose")
-                .description("Enter the full path to your omnipose environment, including 'python.exe'\nDo not include quotes (\') or double quotes (\") around the path.")
+                .name("Spotiflow 'python.exe' location")
+                .category("Spotiflow")
+                .description("Enter the full path to your spotiflow environment, including 'python.exe'\nDo not include quotes (\') or double quotes (\") around the path.")
                 .build();
 
         PropertySheet.Item condaPathItem = new PropertyItemBuilder<>(condaPath, String.class)
                 .propertyType(PropertyItemBuilder.PropertyType.GENERAL)
                 .name("'Conda/Mamba' script location (optional)")
-                .category("Cellpose/Omnipose")
+                .category("Spotiflow")
                 .description("The full path to you conda/mamba command, in case you want the extension to use the 'conda activate' command.\ne.g 'C:\\ProgramData\\Miniconda3\\condabin\\mamba.bat'\nDo not include quotes (\') or double quotes (\") around the path.")
                 .build();
 
         // Add Permanent Preferences and Populate Preferences
-        QuPathGUI.getInstance().getPreferencePane().getPropertySheet().getItems().addAll(cellposePathItem, omniposePathItem, condaPathItem);
+        QuPathGUI.getInstance().getPreferencePane().getPropertySheet().getItems().addAll(spotiflowPathItem, condaPathItem);
 
     }
 
     @Override
     public String getName() {
-        return "BIOP Cellpose extension";
+        return "BIOP Spotiflow extension";
     }
 
     @Override
     public String getDescription() {
-        return "An extension that allows running a Cellpose/Omnipose Virtual Environment within QuPath";
+        return "An extension that allows running a Spotiflow Virtual Environment within QuPath";
     }
 
     @Override
@@ -125,6 +115,6 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
             logger.error("No script editor is available!");
             return;
         }
-        qupath.getScriptEditor().showScript("Cellpose detection", script);
+        qupath.getScriptEditor().showScript("Spotiflow detection", script);
     }
 }

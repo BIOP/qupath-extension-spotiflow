@@ -1,6 +1,6 @@
 package scripts
 
-import qupath.ext.biop.spotiflow.Sptiflow
+import qupath.ext.biop.spotiflow.Spotiflow
 
 /* Last tested on QuPath-0.3.2
  * 
@@ -20,7 +20,7 @@ import qupath.ext.biop.spotiflow.Sptiflow
  */
  
 // Build a Cellpose instance for saving the image pairs
-def cellpose = Sptiflow.builder( "None" )     // No effect, as this script only exports the images
+def cellpose = Spotiflow.builder( "None" )     // No effect, as this script only exports the images
 //                .channels( "DAPI", "CY3" )                        // Optional: Image channels to export
 //                .preprocess( ImageOps.Filters.gaussianBlur( 1 ) ) // Optional: preprocessing QuPath Ops 
                 .build()
