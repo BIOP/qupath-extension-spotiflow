@@ -80,7 +80,7 @@ public class Spotiflow {
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     // Parameters and parameter values that will be passed to the cellpose command
     protected LinkedHashMap<String, String> parameters;
-    private int nThreads = 4;
+    private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
 
 
@@ -228,7 +228,7 @@ public class Spotiflow {
                    logger.error("You need to set the input folder for prediction 'builder.setPredictionInputDir()'");
                    throw new IOException();
                }
-
+               logger.info("Running Spotiflow");
                runSpotiflow();
            } catch (IOException | InterruptedException e) {
                 logger.error("Failed to Run Spotiflow", e);
@@ -626,11 +626,11 @@ public class Spotiflow {
      *
      * @return the virtual environment runner that can run the desired command
      */
-    private VirtualEnvironmentRunner getVirtualEnvironmentRunner() {
+    private VirtualEnvironmentRunner getVirtualEnvironmentRunner(String command) {
 
         // Make sure that cellposeSetup.getCellposePythonPath() is not empty
         if (spotiflowSetup.getSpotiflowPythonPath().isEmpty()) {
-            throw new IllegalStateException("Cellpose python path is empty. Please set it in Edit > Preferences");
+            throw new IllegalStateException("Spotiflow python path is empty. Please set it in Edit > Preferences");
         }
 
         // Change the envType based on the setup options
@@ -641,8 +641,11 @@ public class Spotiflow {
             condaPath = spotiflowSetup.getCondaPath();
         }
 
-        // Set python executable to switch between Omnipose and Cellpose
+        // Set python executable in the environment
         String pythonPath = spotiflowSetup.getSpotiflowPythonPath();
+
+        //TODO try to mimic cellpose here and remove those line + function argument when possible
+        pythonPath = new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
 
         return new VirtualEnvironmentRunner(pythonPath, type, condaPath, this.getClass().getSimpleName());
 
@@ -657,15 +660,15 @@ public class Spotiflow {
     private void runSpotiflow() throws InterruptedException, IOException {
 
         // Need to define the name of the command we are running. We used to be able to use 'cellpose' for both but not since Cellpose v2
-        VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner();
+        VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-predict");
 
         // This is the list of commands after the 'python' call
         // We want to ignore all warnings to make sure the log is clean (-W ignore)
         // We want to be able to call the module by name (-m)
         // We want to make sure UTF8 mode is by default (-X utf8)
-        List<String> cellposeArguments = new ArrayList<>(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> cellposeArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
-        cellposeArguments.add("spotiflow-predict");
+       // cellposeArguments.add("spotiflow-predict");
         cellposeArguments.add("" + this.predictionInputDir);
         if(this.pretrainedModelName != null) {
             cellposeArguments.add("--pretrained-model");
@@ -838,12 +841,12 @@ public class Spotiflow {
      * @throws InterruptedException Exception in case of command thread has some failing
      */
     private void runTraining() throws IOException, InterruptedException {
-        VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner();
+        VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-train");
 
         // This is the list of commands after the 'python' call
-        List<String> cellposeArguments = new ArrayList<>(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> cellposeArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
-        cellposeArguments.add("spotiflow-train");
+        //cellposeArguments.add("spotiflow-train");
         cellposeArguments.add(this.trainingInputDir.getAbsolutePath());
         cellposeArguments.add("--outdir");
         cellposeArguments.add(this.trainingOutputDir.getAbsolutePath());
