@@ -1,36 +1,32 @@
+<!--
 Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://zenodo.org/doi/10.5281/zenodo.10829243)
+-->
 
 
+# QuPath Spotiflow extension
 
-# QuPath Cellpose/Omnipose extension
-
-This repo adds some support to use 2D Cellpose within QuPath through a Python virtual environment.
-
-We also want to use Omnipose, which offers some amazing features, but there is currently no consensus between the 
-developers and there are incompatibilities between the current Cellpose and Omnipose versions.
-
-We have decided to provide support for both using cellpose and omnipose, in the form of two separate environments, so that
-they can play nice. 
+This repo adds some support to use Spotiflow within QuPath through a Python virtual environment.
 
 > [!WARNING]
-> Versions above v0.6.0 of this extension **will only work on QuPath 0.4.0 or later**. Please update QuPath to the latest version. 
-> In case you are stuck with QuPath v0.3.2, [the last release to work is v0.5.1](https://github.com/BIOP/qupath-extension-cellpose/releases/tag/v0.5.1)
+> This extension is developed for QuPath 0.5.x
 
 
 # Citing
 
 Please cite this extension by linking it to this GitHub or to the release you used, and feel free to give us a star ⭐️
-
+<!--
 As this code is neither novel nor entirely original, there is no linked publication, but you can use the following Zenodo entry:
 
+
 [![DOI](https://zenodo.org/badge/417468733.svg)](https://zenodo.org/doi/10.5281/zenodo.10829243)
+-->
 
 ## Code authorship
-**Author**: Olivier Burri (1)
+**Author**: Rémy Dornier (1)
 
-**Contributors**: Nicolas Chiaruttini (1), Romain Guiet (1)
+**Contributors**: Olivier Burri (1), Nicolas Chiaruttini (1), Romain Guiet (1)
 
-This code heavily makes use of functions created by Pete Bankhead and the QuPath team for their [StarDist Extension](https://github.com/qupath/qupath-extension-stardist)
+This code heavily mirrors functions and design implemented in [QuPath Cellpose](https://github.com/BIOP/qupath-extension-cellpose).
 
 **Affiliations**
 
@@ -38,11 +34,9 @@ This code heavily makes use of functions created by Pete Bankhead and the QuPath
 
 ### If you use this extension, you should cite the following publications
 
-Stringer, C., Wang, T., Michaelos, M. et al **Cellpose: a generalist algorithm for cellular segmentation**. Nat Methods 18, 100–106 (2021). https://doi.org/10.1038/s41592-020-01018-x
-
-Pachitariu, M., Stringer, C. **Cellpose 2.0: how to train your own model**. Nat Methods 19, 1634–1641 (2022). https://doi.org/10.1038/s41592-022-01663-4
-
-Cutler, K.J., Stringer, C., Lo, T.W. et al. **Omnipose: a high-precision morphology-independent solution for bacterial cell segmentation**. Nat Methods 19, 1438–1448 (2022). https://doi.org/10.1038/s41592-022-01639-4
+Dominguez Mantes, A., Herrera, A., Khven, I., Schlaeppi, A., Kyriacou, E., Tsissios, G., Skoufa, E., Santangeli, L., Buglakova, E., Berna Durmus, E., Manley, S., Kreshuk, A., Arendt, D., Aztekin, C., Lingner, J., La Manno, G., Weigert, M.
+**Spotiflow: accurate and efficient spot detection for fluorescence microscopy with deep stereographic flow regression**. 
+bioRxiv 2024.02.01.578426. https://doi.org/10.1101/2024.02.01.578426
 
 Bankhead, P. et al. **QuPath: Open source software for digital pathology image analysis**. Scientific Reports (2017). https://doi.org/10.1038/s41598-017-17204-5
 
@@ -53,15 +47,13 @@ Bankhead, P. et al. **QuPath: Open source software for digital pathology image a
 
 # Installation
 
-## Step 1: Install Cellpose and/or Omnipose
+## Step 1: Install Spotiflow
 
-## Installation from the official Cellpose documentation
-You will need a Python virtual environment with Cellpose working.  
-Please follow the instructions to install Cellpose from [the main Cellpose repository](https://github.com/mouseland/cellpose#Installation). 
-Likewise, for Omnipose please see [the main Omnipose repository](https://omnipose.readthedocs.io/installation.html)
-Note that for GPU acceleration on Windows and Linux you may need to [install additional
-CUDA packages](https://github.com/MouseLand/cellpose#gpu-version-cuda-on-windows-or-linux).
+## Installation from the official Spotiflow documentation
+You will need a Python virtual environment with Spotiflow working.  
+Please follow the instructions to install Spotiflow from [the main Spotiflow repository](https://github.com/weigertlab/spotiflow?tab=readme-ov-file#installation-pip-recommended). 
 
+<!--
 > [!NOTE]
 > ### `scikit-image` Dependency
 > As of version 0.4 of this extension, QC (quality control) is run **automatically** when training a model.
@@ -72,90 +64,95 @@ CUDA packages](https://github.com/MouseLand/cellpose#gpu-version-cuda-on-windows
 > `python -m pip install scikit-image`
 > or if you used `conda`:
 > `conda install scikit-image`
+-->
 
 ### Get the path to the Python executable
-This extension will then need to know *the path* (the location in your file system) to (at least) your Cellpose environment plus your Omnipose environment, 
-if you plan on using Omnipose. You will need to enter this information in the QuPath Preferences when configuring the QuPath Cellpose extension.
+This extension will then need to know *the path* (the location in your file system) to (at least) your Spotiflow environment.
+You will need to enter this information in the QuPath Preferences when configuring the QuPath Spotiflow extension.
 
 > [!IMPORTANT]
-> Make sure you activate your Cellpose environment and then check the path! 
+> Make sure you activate your Spotiflow environment and then check the path! 
 
-For example, if you installed `cellpose` into an conda environment named `cellpose-omnipose-biop-gpu` then you can get the path 
+For example, if you installed `spotiflow` into a conda environment named `spotiflow-biop` then you can get the path 
 to the Python executable using the command line or terminal  using the following two commands to activate the conda environment 
 and locate the Python binary (the 3rd line is example output).  
 On Windows:
 ```
-> mamba activate cellpose-omnipose-biop-gpu
+> mamba activate spotiflow-biop
 > where python
-F:\conda-envs\cellpose-omnipose-biop-gpu\python.exe
+F:\conda-envs\spotiflow-biop\python.exe
 ```
 
 On macOS or Linux:
 ```
-> mamba activate cellpose-omnipose-biop-gpu
+> mamba activate spotiflow-biop
 > which python
-{HOME}/conda/envs/cellpose-omnipose-biop-gpu/bin/python
+{HOME}/conda/envs/spotiflow-biop/bin/python
 ```
 where `{HOME}` will be the location of your home directory, typically `/Users/user-name/` on macOS or `/home/user-name/` on Linux.
 
-## Step 2: Install the QuPath Cellpose extension
+## Step 2: Install the QuPath Spotiflow extension
 
-Download the latest `qupath-extension-cellpose-[version].zip` file from [releases](https://github.com/biop/qupath-extension-cellpose/releases) and unzip it into your `extensions` directory. 
+Download the latest `qupath-extension-spotiflow-[version].zip` file from [releases](https://github.com/biop/qupath-extension-spotiflow/releases) and unzip it into your `extensions` directory. 
 
-If your extensions directory is unset, unzip and drag & drop `qupath-extension-cellpose-[version].jar` onto the main QuPath window. You'll be prompted to select a QuPath user directory.
+If your extensions directory is unset, unzip and drag & drop `qupath-extension-spotiflow-[version].jar` onto the main QuPath window. You'll be prompted to select a QuPath user directory.
 The extension will then be copied to a location inside that directory.
 
+<!--
 To copy `run-cellpose-qc.py`, go to Extensions > Installed Extensions and click on "Open Extensions Directory". You can place the `run-cellpose-qc.py` in the same folder.
 
 You might then need to restart QuPath (but not your computer).
 
 > [!NOTE]
-> In case you do not do this step, Cellpose training will still work, but the QC step will be skipped, and you will be notified that `run-cellpose-qc.py` cannot be found.
+> In case you do not do this step, Spotiflow training will still work, but the QC step will be skipped, and you will be notified that `run-cellpose-qc.py` cannot be found.
 > Additionally, this is the step that requires `scikit-image` as noted above.
+-->
 
+## QuPath Extension Spotiflow: First time setup
 
-## QuPath Extension Cellpose/Omnipose: First time setup
-
-Go to `Edit > Preferences > Cellpose/Omnipose`
+Go to `Edit > Preferences > Spotiflow`
 Complete the fields with the requested information by pasting the path(s) you obtained above. 
 Based on the `mamba` installation above, this is what it should look like on Windows:
-![Cellpose setup example](files/cellpose-qupath-setup-example.png)
+
+![Spotiflow setup example](files/spotiflow-qupath-setup-example.png)
+
 
 > [!NOTE]
-> You have the possibility to provide **two** different environments. One for Cellpose and one for Omnipose. 
-> If you do not plan on using Omnipose or have installed both cellpose and Omnipose in the same environment, you can leave it blank.
-> The reason for this is that there may be versions of cellpose and its dependencies that might not match with Omnipose. Adding to that, some parameters
-> in cellpose and omnipose are currently out of sync, so it could be wiser to keep them separate.
+> Unless stated otherwise, this extension should work with the latest releases of both Spotiflow.
+> If this is not the case, please [open an issue on our GitHub](https://github.com/BIOP/qupath-extension-spotiflow/issues/new) or [write a post on the Image.sc forum](https://forum.image.sc/new-topic?category=usage-issues&tags=spotiflow-qupath,qupath-spotiflow) detailing the problem and the steps necessary to reproduce it.
 
-**The extension handles switching between the two based on the `useOmnipose()` flag in the builder.**
+## Running Spotiflow the first time in standalone
 
-> [!NOTE]
-> Unless stated otherwise, this extension should work with the latest releases of both Cellpose and Omnipose.
-> If this is not the case, please [open an issue on our GitHub](https://github.com/BIOP/qupath-extension-cellpose/issues/new) or [write a post on the Image.sc forum](https://forum.image.sc/new-topic?category=usage-issues&tags=cellpose-qupath,qupath-cellpose) detailing the problem and the steps necessary to reproduce it.
-
-## Running Cellpose the first time in standalone
-
-Cellpose needs to download the pretrained models the first time it is run. On some OSes, this does not work from within 
+Spotiflow needs to download the pretrained models the first time it is run. On some OSes, this does not work from within 
 QuPath due to permission issues.
 
-One trick is to **run Cellpose from the command line** once with the model you want to use. The download should work from there,
-and you can then use it within the QuPath Extension Cellpose.
+One trick is to **run Spotiflow from the command line** once with the model you want to use. The download should work from there,
+and you can then use it within the QuPath Extension Spotiflow.
 
-# Using the Cellpose QuPath Extension
+# Using the Spotiflow QuPath Extension
 
 ## Prediction 
 
-Running Cellpose is done via a script and is very similar to the excellent [QuPath StarDist Extension](https://github.com/qupath/qupath-extension-stardist)
+Running Spotiflow is done via a script and is very similar to the excellent [QuPath Cellpose Extension](https://github.com/BIOP/qupath-extension-cellpose)
 
 You can find a template in QuPath in
 
-`Extensions > Cellpose > Cellpose detection script template`
+`Extensions > Spotiflow > Spotiflow detection script template`
 
-Or you can download the [Cellpose_detection_template.groovy](src/main/resources/scripts/Cellpose_detection_template.groovy) script from this repo and open it in the QuPath script editor.  
+Or you can download the [Spotiflow_detection_template.groovy](src/main/resources/scripts/Spotiflow_detection_template.groovy) script from this repo and open it in the QuPath script editor.  
 
 > [!IMPORTANT]
 > Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
-  
+
+### Getting all available arguments
+To get all arguments that are available, call the help from the `spotiflow` object using `spotiflow.helpPredict()`
+```
+def spotiflow = Spotiflow.builder()...build() 
+spotiflow.helpPredict() 
+```
+
+
+<!--
 Make sure that line 26 `.channels()` has the name of the channel you wish to segment--or you can provide the number, starting with `0` for the first channel.
 
 > [!NOTE]
@@ -182,16 +179,23 @@ The first thing the script will do is create a sub-folder in your project called
 If your segmentation is not what you expect, you can check that the exported image(s) represent what you intended for `cellpose` to segment.
 
 Once you are happy with your script, you should save the edited copy to your Project (or another scripts folder) for re-use!
-
+-->
 ### Prediction using custom models
-All you need to use a custom model or your own trained model is to provide the path to the model to the `Cellpose2D.builder`. Just replace the name of the pre-trained model (e.g. `cyto2`)
-with the path to your model, for example:
+To use a custom model or your own trained model, provide the path to the directory containing the model to the `Spotiflow.builder` using `.setModelDir()`
 ```
-// Specify the model name (cyto, nuclei, cyto2, omni_bact or a path to your custom model as a string)
-def pathModel = 'C:/cellpose-custom-models/cellpose_residual_on_style_on_concatenation_off_train_2023_07_26_11_31_47.433625'
-def cellpose = Cellpose2D.builder( pathModel )
+def pathModel = 'C:/spotiflow-custom-models/my-nice-spotiflow-model'
+def spotiflow = Spotiflow.builder()
+                     .setModelDir(new File(pathModel))  
 ```
 
+### Prediction using other pre-trained models
+To use a pre-trained model, different from the default one (`general`), provide the name of this model to the `Spotiflow.builder` using `.setPretrainedModelName()`
+```
+def pretrainedModel = 'hybiss'
+def spotiflow = Spotiflow.builder()
+                     .setPretrainedModelName(pretrainedModel)  
+```
+<!--
 ## Training custom models
 
 **Requirements**:
@@ -284,14 +288,11 @@ our current guidelines:
 2. Save the `cellpose-training`, `QC` and `models` folders at the end of your training somewhere. This will contain everything that was made during training.
 3. Save the training script as well.
 
-### Breaking changes after QuPath 0.4.0
-In order to make the extension more flexible and less dependent on the builder, a new Builder method `addParameter(name, value)` is available that can take [any cellpose CLI argument or argument pair](https://cellpose.readthedocs.io/en/latest/command.html#options). 
-For this to work, some elements that were "hard coded" on the builder have been removed, so you will get some errors. For example: `excludeEdges()` and `clusterDBSCAN()` no longer exist. 
-You can use `addParameter("exclude_on_edges")`, and `addParameter("cluster")` instead.
 
+-->
 # Building
 
-You can build the QuPath Cellpose extension from source with
+You can build the QuPath Spotiflow extension from source with
 
 ```bash
 gradlew clean build
@@ -302,6 +303,7 @@ The output will be under `build/libs`.
 * `clean` removes anything old
 * `build` builds the QuPath extension as a *.jar* file and adds it to `libs`
 
+<!--
 # Notes and debugging
 
 ## Preprocessing your data, extracting Color Deconvolution stains
@@ -340,3 +342,4 @@ Double whatever value is output from the script and use it in `setOverlap( int )
 ## Ubuntu Error 13: Permission Denied
 [As per this post here](https://forum.image.sc/t/could-not-execute-system-command-in-qupath-thanks-to-groovy-script-and-java-processbuilder-class/61629/2?u=oburri), there is a permissions issue when using Ubuntu, which does not allow Java's `ProcessBuilder` to run. 
 The current workaround is [to build QuPath from source](https://qupath.readthedocs.io/en/stable/docs/reference/building.html) in Ubuntu, which then allows the use of the `ProcessBuilder`, which is the magic piece of code that actually calls Cellpose.
+-->
