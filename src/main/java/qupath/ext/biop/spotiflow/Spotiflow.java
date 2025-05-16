@@ -37,7 +37,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
@@ -48,9 +47,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,55 +58,45 @@ import java.util.TreeMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.List;
 
 /**
- * Dense object detection based on the cellpose and omnipose publications
+ * Spot detection based on the following method:
  * <pre>
- * Stringer, C., Wang, T., Michaelos, M. et al.
- *     "Cellpose: a generalist algorithm for cellular segmentation"
- *     <i>Nat Methods 18, 100–106 (2021). <a href="https://doi.org/10.1038/s41592-020-01018-x">doi.org/10.1038/s41592-020-01018-x</a></i>
+ *   Albert Dominguez Mantes et al.
+ *     "Spotiflow: accurate and efficient spot detection for fluorescence microscopy with deep stereographic flow regression"
+ *   <i>Cold Spring Harbor Laboratory - bioRxiv</i>, 2024. doi: <a href=https://doi.org/10.1101/2024.02.01.578426>10.1101/2024.02.01.578426</a>
  * </pre>
- * And
- * <pre>
- * Cutler, K.J., Stringer, C., Lo, T.W. et al.
- *     "Omnipose: a high-precision morphology-independent solution for bacterial cell segmentation"
- *     <i>Nat Methods 19, 1438–1448 (2022). https://doi.org/10.1038/s41592-022-01639-4</i>
- * </pre>
- * See the main repos at <a href="https://github.com/mouseland/cellpose">https://github.com/mouseland/cellpose</a> and <a href="https://github.com/kevinjohncutler/omnipose">https://github.com/kevinjohncutler/omnipose</a>
- *
+ * See the main repo at <a href="https://github.com/weigertlab/spotiflow">https://github.com/weigertlab/spotiflow</a>
  * <p>
- * The structure of this extension was adapted from the qupath-stardist-extension at <a href="https://github.com/qupath/qupath-extension-stardist">https://github.com/qupath/qupath-extension-stardist</a>
- * This way the Cellpose builder mirrors the StarDist2D builder, which should allow users familiar with the StarDist extension to use this one.
+ * Very much inspired by qupath-extension-cellpose at <a href="https://github.com/BIOP/qupath-extension-cellpose">https://github.com/BIOP/qupath-extension-cellpose</a>
  * <p>
  *
- * @author Olivier Burri
+ * @author Rémy Dornier
  * @author Pete Bankhead
  */
+
 public class Spotiflow {
 
     private final static Logger logger = LoggerFactory.getLogger(Spotiflow.class);
 
+    // Parameters and parameter values that will be passed to the spotiflow command
     protected File modelDir;
     protected String pretrainedModelName;
     protected File tempDirectory;
-    protected File predictionOutputDirectory;
     protected File trainingInputDir ;
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
-    // Parameters and parameter values that will be passed to the cellpose command
     protected LinkedHashMap<String, String> parameters;
+
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
-    private String CSV_SEPARATOR = ",";
-    private String NAME_SEPARATOR = "_";
+    private final String CSV_SEPARATOR = ",";
+    private final String NAME_SEPARATOR = "_";
 
     /**
      * Create a builder to customize detection parameters.
-     * This accepts either Text describing the built-in models from cellpose (cyto, cyto2, nuc)
-     * or a path to a custom model (as a String)
      *
      * @return this builder
      */
@@ -279,7 +266,7 @@ public class Spotiflow {
         // read results, add points and add measurements
         for (String name: correspondanceMap.keySet()) {
             List<PathObject> pointDetectionList = new ArrayList<>();
-            File detectionFile = new File(this.predictionOutputDirectory, name + ".csv");
+            File detectionFile = new File(this.tempDirectory, name + ".csv");
             PathObject parent = correspondanceMap.get(name);
 
             if(detectionFile.exists()){
@@ -709,7 +696,7 @@ public class Spotiflow {
      */
     private VirtualEnvironmentRunner getVirtualEnvironmentRunner(String command) {
 
-        // Make sure that cellposeSetup.getCellposePythonPath() is not empty
+        // Make sure that spotiflowSetup.getSpotiflowPythonPath() is not empty
         if (spotiflowSetup.getSpotiflowPythonPath().isEmpty()) {
             throw new IllegalStateException("Spotiflow python path is empty. Please set it in Edit > Preferences");
         }
@@ -729,18 +716,17 @@ public class Spotiflow {
         pythonPath = new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
 
         return new VirtualEnvironmentRunner(pythonPath, type, condaPath, this.getClass().getSimpleName());
-
     }
 
     /**
-     * This class actually runs Cellpose by calling the virtual environment
+     * This class actually runs Spotiflow by calling the virtual environment
      *
      * @throws IOException          Exception in case files could not be read
      * @throws InterruptedException Exception in case of command thread has some failing
      */
     private void runSpotiflow() throws InterruptedException, IOException {
 
-        // Need to define the name of the command we are running. We used to be able to use 'cellpose' for both but not since Cellpose v2
+        // Need to define the name of the command we are running.
         VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-predict");
 
         // This is the list of commands after the 'python' call
@@ -749,7 +735,7 @@ public class Spotiflow {
         // We want to make sure UTF8 mode is by default (-X utf8)
         List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
-       // cellposeArguments.add("spotiflow-predict");
+       // spotiflowArguments.add("spotiflow-predict");
         spotiflowArguments.add("" + this.tempDirectory);
         spotiflowArguments.add("-o" + this.tempDirectory);
         spotiflowArguments.add("-v");
@@ -878,9 +864,9 @@ public class Spotiflow {
 //    }
 
     /**
-     * Executes the cellpose training by
+     * Executes the spotiflow training by
      * 1. Saving the images
-     * 2. running cellpose
+     * 2. running spotiflow
      * 3. moving the resulting model file to the desired directory
      *
      * @return a link to the model file, which can be displayed
@@ -911,13 +897,13 @@ public class Spotiflow {
             return modelFile;*/
 
         } catch (IOException | InterruptedException e) {
-            logger.error("Error while running cellpose training: " + e.getMessage(), e);
+            logger.error("Error while running spotiflow training: " + e.getMessage(), e);
         }
         return null;
     }
 
     /**
-     * Configures and runs the {@link VirtualEnvironmentRunner} that will ultimately run cellpose training
+     * Configures and runs the {@link VirtualEnvironmentRunner} that will ultimately run spotiflow training
      *
      * @throws IOException          Exception in case files could not be read
      * @throws InterruptedException Exception in case of command thread has some failing
@@ -926,23 +912,23 @@ public class Spotiflow {
         VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-train");
 
         // This is the list of commands after the 'python' call
-        List<String> cellposeArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
-        //cellposeArguments.add("spotiflow-train");
-        cellposeArguments.add(this.trainingInputDir.getAbsolutePath());
-        cellposeArguments.add("--outdir");
-        cellposeArguments.add(this.trainingOutputDir.getAbsolutePath());
+        //spotiflowArguments.add("spotiflow-train");
+        spotiflowArguments.add(this.trainingInputDir.getAbsolutePath());
+        spotiflowArguments.add("-o");
+        spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
 
         this.parameters.forEach((parameter, value) -> {
-            cellposeArguments.add("--" + parameter);
+            spotiflowArguments.add("--" + parameter);
             if (value != null) {
-                cellposeArguments.add(value);
+                spotiflowArguments.add(value);
             }
         });
 
-        veRunner.setArguments(cellposeArguments);
+        veRunner.setArguments(spotiflowArguments);
 
-        // Finally, we can run Cellpose
+        // Finally, we can run Spotiflow
         veRunner.runCommand(true);
         veRunner.getProcess().waitFor();
 

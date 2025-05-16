@@ -17,9 +17,9 @@ import java.io.InputStream;
 import java.util.LinkedHashMap;
 
 /**
- * Install Cellpose as an extension.
+ * Install Spotiflow as an extension.
  * <p>
- * Ibnstalls Cellpose into QuPath, adding some metadata and adds the necessary global variables to QuPath's Preferences
+ * Installs Spotiflow into QuPath, adding some metadata and adds the necessary global variables to QuPath's Preferences
  *
  * @author Olivier Burri
  */
@@ -59,7 +59,7 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
                 logger.error(e.getLocalizedMessage(), e);
             }
         });
-        // Get a copy of the cellpose options
+        // Get a copy of the spotiflow options
         SpotiflowSetup options = SpotiflowSetup.getInstance();
 
 

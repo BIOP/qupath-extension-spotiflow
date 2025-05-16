@@ -24,20 +24,18 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Cell detection based on the following method:
+ * Spot detection based on the following method:
  * <pre>
- *   Uwe Schmidt, Martin Weigert, Coleman Broaddus, and Gene Myers.
- *     "Cell Detection with Star-convex Polygons."
- *   <i>International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI)</i>, Granada, Spain, September 2018.
+ *   Albert Dominguez Mantes et al.
+ *     "Spotiflow: accurate and efficient spot detection for fluorescence microscopy with deep stereographic flow regression"
+ *   <i>Cold Spring Harbor Laboratory - bioRxiv</i>, 2024. doi: <a href=https://doi.org/10.1101/2024.02.01.578426>10.1101/2024.02.01.578426</a>
  * </pre>
- * See the main repo at <a href="https://github.com/mpicbg-csbd/stardist">...</a>
+ * See the main repo at <a href="https://github.com/weigertlab/spotiflow">https://github.com/weigertlab/spotiflow</a>
  * <p>
- * Very much inspired by stardist-imagej at <a href="https://github.com/mpicbg-csbd/stardist-imagej">...</a> but re-written from scratch to use OpenCV and
- * adapt the method of converting predictions to contours (very slightly) to be more QuPath-friendly.
+ * Very much inspired by qupath-extension-cellpose at <a href="https://github.com/BIOP/qupath-extension-cellpose">https://github.com/BIOP/qupath-extension-cellpose</a>
  * <p>
- * Models are expected in the same format as required by the Fiji plugin, or converted to a frozen .pb file for use with OpenCV.
  *
- * @author Pete Bankhead (this implementation, but based on the others)
+ * @author Rémy Dornier
  */
 public class SpotiflowBuilder {
 
@@ -47,13 +45,12 @@ public class SpotiflowBuilder {
     private final LinkedHashMap<String, String> spotiflowParameters = new LinkedHashMap<>();
     private File modelDir = null;
     private String pretrainedModelName = null;
-    private File predictionInputDir = null;
+    private File tempDirectory = null;
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
 
     /**
      * Build a spotiflow model
-     *
      */
     protected SpotiflowBuilder() {
         // Need to know setup options in order to guide the user in case of version inconsistency
@@ -66,8 +63,8 @@ public class SpotiflowBuilder {
      * @param inputDir  path to prediction input dir
      * @return this builder
      */
-    public SpotiflowBuilder setPredictionInputDir(File inputDir) {
-        this.predictionInputDir = inputDir;
+    public SpotiflowBuilder tempDirectory(File inputDir) {
+        this.tempDirectory = inputDir;
         return this;
     }
 
@@ -156,11 +153,10 @@ public class SpotiflowBuilder {
         File quPathProjectDir = QP.getProject().getPath().getParent().toFile();
 
         // Prepare temp directory in case it was not set
-        if (this.predictionInputDir == null) {
-            this.predictionInputDir = new File(quPathProjectDir, "spotiflow-temp");
+        if (this.tempDirectory == null) {
+            this.tempDirectory = new File(quPathProjectDir, "spotiflow-temp");
         }
-        spotiflow.tempDirectory = this.predictionInputDir;
-        spotiflow.predictionOutputDirectory = this.predictionInputDir;
+        spotiflow.tempDirectory = this.tempDirectory;
 
         spotiflow.modelDir = this.modelDir;
         spotiflow.pretrainedModelName = this.pretrainedModelName;
