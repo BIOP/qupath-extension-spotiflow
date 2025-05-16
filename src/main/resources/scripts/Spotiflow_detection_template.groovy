@@ -10,7 +10,7 @@
  * 4. Create the desired objects (i.e. points) with the selected statistics (i.e. spotiflow outputs)
  *
  * NOTE: that this template does not contain all options, but should help get you started
- * See all options by calling Spotiflow.builder().help("predict").build()
+ * See all options by calling spotiflow.helpPredict()
  *
  * NOTE 2: You should change pathObjects get all annotations if you want to run for the project. By default this script
  * will only run on the selected annotations.
@@ -35,6 +35,9 @@ if (pathObjects.isEmpty()) {
     Dialogs.showErrorMessage( "Spotiflow", "Please select a parent object!" )
     return
 }
+
+// print the available arguments for prediction
+spotiflow.helpPredict()
 
 spotiflow.detectObjects( imageData, pathObjects )
 

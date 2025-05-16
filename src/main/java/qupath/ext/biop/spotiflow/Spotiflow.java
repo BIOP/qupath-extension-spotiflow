@@ -217,6 +217,48 @@ public class Spotiflow {
 //    }
 //
     /**
+     * Prints the help and the available CLI arguments for the training command
+     */
+    public void helpTrain(){
+        printHelp("spotiflow-train");
+    }
+
+    /**
+     * Prints the help and the available CLI arguments for the prediction command
+     */
+    public void helpPredict(){
+       printHelp("spotiflow-predict");
+    }
+
+    /**
+     * Prints the help and the available CLI arguments for the given command
+     * @param command
+     */
+    private void printHelp(String command){
+        try {
+            // Need to define the name of the command we are running.
+            VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner(command);
+
+            // This is the list of commands after the 'python' call
+            // We want to ignore all warnings to make sure the log is clean (-W ignore)
+            // We want to be able to call the module by name (-m)
+            // We want to make sure UTF8 mode is by default (-X utf8)
+            List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+
+            //TODO set it as for cellpose when available
+            //spotiflowArguments.add(command);
+            spotiflowArguments.add("--help");
+
+            veRunner.setArguments(spotiflowArguments);
+
+            // Finally, we can run the help
+            veRunner.runCommand(true);
+        } catch (IOException e) {
+            logger.error("Failed to run help", e);
+        }
+    }
+
+    /**
      * Detect cells within one or more parent objects, firing update events upon completion.
      *
      * @param imageData the image data containing the object
@@ -291,7 +333,6 @@ public class Spotiflow {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-
             }
 
             // Assign the objects to the parent object
@@ -735,7 +776,8 @@ public class Spotiflow {
         // We want to make sure UTF8 mode is by default (-X utf8)
         List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
-       // spotiflowArguments.add("spotiflow-predict");
+        //TODO set it as for cellpose when available
+        //spotiflowArguments.add("spotiflow-predict");
         spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
         spotiflowArguments.add("--out-dir");
         spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
@@ -760,8 +802,7 @@ public class Spotiflow {
         veRunner.setArguments(spotiflowArguments);
 
         // Finally, we can run Spotiflow
-        veRunner.runCommand(false);
-        veRunner.getProcess().waitFor();
+        veRunner.runCommand(true);
     }
 
 //    private void processCellposeFiles(VirtualEnvironmentRunner veRunner, List<TileFile> allTiles) throws CancellationException, InterruptedException, IOException {
@@ -916,6 +957,7 @@ public class Spotiflow {
         // This is the list of commands after the 'python' call
         List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
+        //TODO set it as for cellpose when available
         //spotiflowArguments.add("spotiflow-train");
         spotiflowArguments.add(this.trainingInputDir.getAbsolutePath());
         spotiflowArguments.add("--out-dir");
@@ -932,7 +974,6 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
-        veRunner.getProcess().waitFor();
 
         // Get the log
         this.theLog = veRunner.getProcessLog();
