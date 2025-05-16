@@ -736,20 +736,22 @@ public class Spotiflow {
         List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
        // spotiflowArguments.add("spotiflow-predict");
-        spotiflowArguments.add("" + this.tempDirectory);
-        spotiflowArguments.add("-o" + this.tempDirectory);
-        spotiflowArguments.add("-v");
+        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add("--out-dir");
+        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add("--verbose");
+
         if(this.pretrainedModelName != null) {
-            spotiflowArguments.add("-pm");
+            spotiflowArguments.add("--pretrained-model");
             spotiflowArguments.add(this.pretrainedModelName);
         }
         if(this.modelDir != null) {
-            spotiflowArguments.add("-md");
+            spotiflowArguments.add("--model-dir");
             spotiflowArguments.add(this.modelDir.getAbsolutePath());
         }
 
         this.parameters.forEach((parameter, value) -> {
-            spotiflowArguments.add(parameter);
+            spotiflowArguments.add("--" + parameter);
             if (value != null) {
                 spotiflowArguments.add(value);
             }
@@ -916,7 +918,7 @@ public class Spotiflow {
 
         //spotiflowArguments.add("spotiflow-train");
         spotiflowArguments.add(this.trainingInputDir.getAbsolutePath());
-        spotiflowArguments.add("-o");
+        spotiflowArguments.add("--out-dir");
         spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
 
         this.parameters.forEach((parameter, value) -> {
