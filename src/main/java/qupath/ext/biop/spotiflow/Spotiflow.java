@@ -29,22 +29,41 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.List;
 
 /**
  * Dense object detection based on the cellpose and omnipose publications
@@ -76,6 +95,7 @@ public class Spotiflow {
     protected File modelDir;
     protected String pretrainedModelName;
     protected File tempDirectory;
+    protected File predictionOutputDirectory;
     protected File trainingInputDir ;
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
@@ -83,7 +103,8 @@ public class Spotiflow {
     protected LinkedHashMap<String, String> parameters;
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
-
+    private String CSV_SEPARATOR = ",";
+    private String NAME_SEPARATOR = "_";
 
     /**
      * Create a builder to customize detection parameters.
@@ -123,15 +144,16 @@ public class Spotiflow {
 //        return new OpCreators.ImageNormalizationBuilder();
 //    }
 //
-//    private static PathObject objectToCell(PathObject pathObject) {
-//        ROI roiNucleus = null;
-//        var children = pathObject.getChildObjects();
-//        if (children.size() == 1)
-//            roiNucleus = children.iterator().next().getROI();
-//        else if (children.size() > 1)
-//            throw new IllegalArgumentException("Cannot convert object with multiple child objects to a cell!");
-//        return PathObjects.createCellObject(pathObject.getROI(), roiNucleus, pathObject.getPathClass(), pathObject.getMeasurementList());
-//    }
+    private PathObject objectToPoint(PathObject parent, PixelCalibration cal, double x, double y,
+                                     double intensity, double probability) {
+        ROI pointROI = ROIs.createPointsROI(x, y, parent.getROI().getImagePlane());
+        PathObject pointObject = PathObjects.createDetectionObject(pointROI, null, null);
+        ObjectMeasurements.addShapeMeasurements(pointObject, cal);
+        pointObject.getMeasurementList().put("Spotiflow intensity", intensity);
+        pointObject.getMeasurementList().put("Spotiflow probability", probability);
+
+        return pointObject;
+    }
 //
 //    private static PathObject cellToObject(PathObject cell, Function<ROI, PathObject> creator) {
 //        var parent = creator.apply(cell.getROI());
@@ -228,29 +250,71 @@ public class Spotiflow {
         Objects.requireNonNull(parents);
 
         cleanDirectory(tempDirectory);
+        PixelCalibration cal = imageData.getServer().getPixelCalibration();
 
-        int index = 0;
+        // save images in temp folder
+        Map<String, PathObject> correspondanceMap = new HashMap<>();
         for (PathObject parent: parents) {
             RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
             try {
                 ImagePlus image = IJTools.convertToImagePlus(imageData.getServer(), region).getImage();
-                IJ.save(image, new File(tempDirectory, "Annotation_"+(index++)+".tif").getAbsolutePath());
+                String name = region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
+                correspondanceMap.put(name, parent);
+
+                IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
             } catch (IOException e){
                 logger.error("Cannot convert ROI to ImagePlus");
             }
         }
 
+        // run spotiflow
         try {
-               if (this.tempDirectory == null) {
-                   logger.error("You need to set the input folder for prediction 'builder.setPredictionInputDir()'");
-                   throw new IOException();
-               }
-               logger.info("Running Spotiflow");
-               runSpotiflow();
-           } catch (IOException | InterruptedException e) {
-                logger.error("Failed to Run Spotiflow", e);
-                return;
-           }
+            logger.info("Running Spotiflow");
+            runSpotiflow();
+        } catch (IOException | InterruptedException e) {
+            logger.error("Failed to Run Spotiflow", e);
+            return;
+        }
+
+        // read results, add points and add measurements
+        for (String name: correspondanceMap.keySet()) {
+            List<PathObject> pointDetectionList = new ArrayList<>();
+            File detectionFile = new File(this.predictionOutputDirectory, name + ".csv");
+            PathObject parent = correspondanceMap.get(name);
+
+            if(detectionFile.exists()){
+                String[] regionAttributes = name.split(NAME_SEPARATOR);
+                double x0 = Double.parseDouble(regionAttributes[0]);
+                double y0 = Double.parseDouble(regionAttributes[1]);
+
+                try {
+                    List<String> detectionList = Files.readAllLines(detectionFile.toPath());
+
+                    //skip the header and loop over the detections
+                    for (int d = 1; d < detectionList.size(); d++){
+                        String detection = detectionList.get(d);
+                        String[] attributes = detection.split(CSV_SEPARATOR);
+                        double yf = Double.parseDouble(attributes[0]) + y0;
+                        double xf = Double.parseDouble(attributes[1]) + x0;
+                        double intensity = Double.parseDouble(attributes[2]);
+                        double probability = Double.parseDouble(attributes[3]);
+                        pointDetectionList.add(objectToPoint(parent, cal, xf, yf, intensity, probability));
+                    }
+
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }
+
+            // Assign the objects to the parent object
+            parent.setLocked(true);
+            parent.clearChildObjects();
+            parent.addChildObjects(pointDetectionList);
+        }
+
+        // update hierarchy to show the objects
+        imageData.getHierarchy().fireHierarchyChangedEvent(this);
 
 //        // Multistep process
 //        // 1. Extract all images and save to temp folder
@@ -709,8 +773,7 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(false);
-
-        //processCellposeFiles(veRunner, allTiles);
+        veRunner.getProcess().waitFor();
     }
 
 //    private void processCellposeFiles(VirtualEnvironmentRunner veRunner, List<TileFile> allTiles) throws CancellationException, InterruptedException, IOException {
@@ -881,6 +944,7 @@ public class Spotiflow {
 
         // Finally, we can run Cellpose
         veRunner.runCommand(true);
+        veRunner.getProcess().waitFor();
 
         // Get the log
         this.theLog = veRunner.getProcessLog();

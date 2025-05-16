@@ -160,6 +160,7 @@ public class SpotiflowBuilder {
             this.predictionInputDir = new File(quPathProjectDir, "spotiflow-temp");
         }
         spotiflow.tempDirectory = this.predictionInputDir;
+        spotiflow.predictionOutputDirectory = this.predictionInputDir;
 
         spotiflow.modelDir = this.modelDir;
         spotiflow.pretrainedModelName = this.pretrainedModelName;
