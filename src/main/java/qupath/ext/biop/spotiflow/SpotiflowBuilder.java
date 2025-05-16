@@ -16,16 +16,11 @@
 
 package qupath.ext.biop.spotiflow;
 
-import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.io.GsonTools;
 import qupath.lib.scripting.QP;
-import qupath.opencv.ops.ImageOps;
 
 import java.io.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -164,7 +159,7 @@ public class SpotiflowBuilder {
         if (this.predictionInputDir == null) {
             this.predictionInputDir = new File(quPathProjectDir, "spotiflow-temp");
         }
-        spotiflow.predictionInputDir = this.predictionInputDir;
+        spotiflow.tempDirectory = this.predictionInputDir;
 
         spotiflow.modelDir = this.modelDir;
         spotiflow.pretrainedModelName = this.pretrainedModelName;

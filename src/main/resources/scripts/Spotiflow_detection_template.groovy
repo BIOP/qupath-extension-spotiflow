@@ -20,12 +20,9 @@
 // Specify the model name (cyto, nuclei, cyto2, ... or a path to your custom model as a string)
 // Other models for Cellpose https://cellpose.readthedocs.io/en/latest/models.html
 // And for Omnipose: https://omnipose.readthedocs.io/models.html
-def inputDirPath = "D:\\Remy\\Github-projects\\qupath-0.5.0\\qupath\\qupath-extension-spotiflow\\files\\testImage"
-def inputDir = new File(inputDirPath)
-
 
 def spotiflow = Spotiflow.builder()
-        .setPredictionInputDir(inputDir)                  // Resolution for detection in um
+//        .setPredictionInputDir(inputDir)              // OPTIONAL : default will be in qpProject/spotiflow-temp folder
 //        .setModelDir(/*path to model dir*/)           // OPTIONAL
 //        .setPretrainedModelName(/*name of the pretrained model*/)  // OPTIONAL
         .build()

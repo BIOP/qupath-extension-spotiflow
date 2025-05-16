@@ -22,6 +22,7 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.Wand;
 import ij.process.ImageProcessor;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ public class Spotiflow {
 
     protected File modelDir;
     protected String pretrainedModelName;
-    protected File predictionInputDir;
+    protected File tempDirectory;
     protected File trainingInputDir ;
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
@@ -223,8 +224,24 @@ public class Spotiflow {
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
     public void detectObjectsImpl(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
-           try {
-               if (this.predictionInputDir == null) {
+
+        Objects.requireNonNull(parents);
+
+        cleanDirectory(tempDirectory);
+
+        int index = 0;
+        for (PathObject parent: parents) {
+            RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
+            try {
+                ImagePlus image = IJTools.convertToImagePlus(imageData.getServer(), region).getImage();
+                IJ.save(image, new File(tempDirectory, "Annotation_"+(index++)+".tif").getAbsolutePath());
+            } catch (IOException e){
+                logger.error("Cannot convert ROI to ImagePlus");
+            }
+        }
+
+        try {
+               if (this.tempDirectory == null) {
                    logger.error("You need to set the input folder for prediction 'builder.setPredictionInputDir()'");
                    throw new IOException();
                }
@@ -417,21 +434,21 @@ public class Spotiflow {
 
     }
 
-//    private void cleanDirectory(File directory) {
-//        // Delete the existing directory
-//        try {
-//            FileUtils.deleteDirectory(directory);
-//        } catch (IOException e) {
-//            logger.error("Failed to delete temp directory", e);
-//        }
-//
-//        // Recreate the directory
-//        try {
-//            FileUtils.forceMkdir(directory);
-//        } catch (IOException e) {
-//            logger.error("Failed to create temp directory", e);
-//        }
-//    }
+    private void cleanDirectory(File directory) {
+        // Delete the existing directory
+        try {
+            FileUtils.deleteDirectory(directory);
+        } catch (IOException e) {
+            logger.error("Failed to delete temp directory", e);
+        }
+
+        // Recreate the directory
+        try {
+            FileUtils.forceMkdir(directory);
+        } catch (IOException e) {
+            logger.error("Failed to create temp directory", e);
+        }
+    }
 //
 //    private PathObject convertToObject(CandidateObject object, ImagePlane plane, double cellExpansion, Geometry mask) {
 //        var geomNucleus = simplify(object.geometry);
@@ -666,27 +683,29 @@ public class Spotiflow {
         // We want to ignore all warnings to make sure the log is clean (-W ignore)
         // We want to be able to call the module by name (-m)
         // We want to make sure UTF8 mode is by default (-X utf8)
-        List<String> cellposeArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
 
        // cellposeArguments.add("spotiflow-predict");
-        cellposeArguments.add("" + this.predictionInputDir);
+        spotiflowArguments.add("" + this.tempDirectory);
+        spotiflowArguments.add("-o" + this.tempDirectory);
+        spotiflowArguments.add("-v");
         if(this.pretrainedModelName != null) {
-            cellposeArguments.add("--pretrained-model");
-            cellposeArguments.add(this.pretrainedModelName);
+            spotiflowArguments.add("-pm");
+            spotiflowArguments.add(this.pretrainedModelName);
         }
         if(this.modelDir != null) {
-            cellposeArguments.add("--model-dir");
-            cellposeArguments.add(this.modelDir.getAbsolutePath());
+            spotiflowArguments.add("-md");
+            spotiflowArguments.add(this.modelDir.getAbsolutePath());
         }
 
         this.parameters.forEach((parameter, value) -> {
-            cellposeArguments.add("--" + parameter);
+            spotiflowArguments.add(parameter);
             if (value != null) {
-                cellposeArguments.add(value);
+                spotiflowArguments.add(value);
             }
         });
 
-        veRunner.setArguments(cellposeArguments);
+        veRunner.setArguments(spotiflowArguments);
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(false);
