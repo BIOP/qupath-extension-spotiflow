@@ -52,6 +52,7 @@ public class SpotiflowBuilder {
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
     private ColorTransforms.ColorTransform[] channels = new ColorTransforms.ColorTransform[0];
+    private boolean savePredictionImages = true;
 
     /**
      * Build a spotiflow model
@@ -69,6 +70,17 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder tempDirectory(File inputDir) {
         this.tempDirectory = inputDir;
+        return this;
+    }
+
+    /**
+     * Set input folder to predict spots
+     *
+     * @param savePredictionImages  overwrite variable
+     * @return this builder
+     */
+    public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
+        this.savePredictionImages = savePredictionImages;
         return this;
     }
 
@@ -218,6 +230,7 @@ public class SpotiflowBuilder {
         spotiflow.trainingOutputDir = this.trainingOutputDir;
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
+        spotiflow.savePredictionImages = this.savePredictionImages;
 
         // check number of channel to process. Spotiflow only works with one channel at a time
         if(this.channels.length == 0){

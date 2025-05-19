@@ -79,6 +79,7 @@ public class Spotiflow {
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
     protected Map<String, ImageDataOp> opMap = new HashMap<>();
+    protected boolean savePredictionImages;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -268,24 +269,51 @@ public class Spotiflow {
 
         Objects.requireNonNull(parents);
 
-        cleanDirectory(tempDirectory);
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
+
+        if(savePredictionImages) {
+            cleanDirectory(tempDirectory);
+        }
 
         // loop over the different channels to process
         for(String channel: opMap.keySet()) {
-            logger.info("Working on channel " + channel);
+            logger.info("Working on channel {}", channel);
+            Map<String, PathObject> correspondanceMap = new HashMap<>();
+            Collection<PathObject> missingParents = new ArrayList<>();
+
+            if(savePredictionImages) {
+                missingParents = (Collection<PathObject>) parents;
+            }else {
+                for (PathObject parent : parents) {
+                    ROI region = parent.getROI();
+                    String name = channel + NAME_SEPARATOR +
+                            (int)region.getBoundsX() + NAME_SEPARATOR +
+                            (int)region.getBoundsY() + NAME_SEPARATOR +
+                            (int)region.getBoundsWidth() + NAME_SEPARATOR +
+                            (int)region.getBoundsHeight();
+
+                    File optFile = new File(tempDirectory, name + ".tif");
+                    if(optFile.exists()){
+                        logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
+                        correspondanceMap.put(name, parent);
+                    }else{
+                        logger.warn("The parent shape '{}' is missing. Will be saved anyway", name);
+                        missingParents.add(parent);
+                    }
+                }
+            }
+
             ImageDataOp op = opMap.get(channel);
 
             // save images in temp folder
-            Map<String, PathObject> correspondanceMap = new HashMap<>();
-            logger.info("Saving image into the temporary folder");
-            for (PathObject parent : parents) {
-                ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int) parent.getROI().getBoundsWidth(), (int) parent.getROI().getBoundsHeight());
-                RegionRequest region = RegionRequest.createInstance(
-                        opServer.getPath(),
-                        opServer.getDownsampleForResolution(0),
-                        parent.getROI());
-                try {
+            for (PathObject parent : missingParents) {
+                logger.info("Saving image(s) into the temporary folder");
+                try(ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int) parent.getROI().getBoundsWidth(), (int) parent.getROI().getBoundsHeight())){
+                    RegionRequest region = RegionRequest.createInstance(
+                            opServer.getPath(),
+                            opServer.getDownsampleForResolution(0),
+                            parent.getROI());
+
                     // This applies all ops to the current tile
                     Mat mat = op.apply(imageData, region);
 
@@ -296,10 +324,11 @@ public class Spotiflow {
 
                     // save the image
                     IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
-                } catch (IOException e) {
+                } catch (Exception e) {
                     logger.error("Cannot convert ROI to ImagePlus");
                 }
             }
+
 
             // run spotiflow
             try {

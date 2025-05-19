@@ -26,6 +26,7 @@ def spotiflow = Spotiflow.builder()
 //        .setPretrainedModelName("general")                   // OPTIONAL: Default is 'general'
 //        .addParameter("key","value")                         // OPTIONAL: Add more parameter, base on the available ones
         .channels("SPOT")
+        .savePredictionImages(false)
         .build()
 
 // Run detection for the selected objects
@@ -38,7 +39,7 @@ if (pathObjects.isEmpty()) {
 }
 
 // print the available arguments for prediction
-spotiflow.helpPredict()
+//spotiflow.helpPredict()
 
 spotiflow.detectObjects( imageData, pathObjects )
 
