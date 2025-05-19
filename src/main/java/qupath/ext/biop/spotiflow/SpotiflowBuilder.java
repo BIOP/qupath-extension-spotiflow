@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.scripting.QP;
+import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
 
 import java.io.*;
@@ -220,14 +221,19 @@ public class SpotiflowBuilder {
 
         // check number of channel to process. Spotiflow only works with one channel at a time
         if(this.channels.length == 0){
-            logger.warn("No channels were provided. The first channel is processed", channels.length);
-            channels(0);
+            logger.warn("No channels were provided. The first channel will be processed");
+            String channelName =  QP.getCurrentImageData().getServer().getChannel(0).getName();
+            channels(channelName);
         } else if (this.channels.length > 1) {
             logger.warn("You supplied {} channels, but Spotiflow needs one channel only. Keeping the first one", channels.length);
             this.channels = Arrays.copyOf(this.channels, 1);
         }
 
-        spotiflow.op = ImageOps.buildImageDataOp(channels);
+        Map<String, ImageDataOp> opMap = new HashMap<>();
+        for(ColorTransforms.ColorTransform channel: this.channels){
+            opMap.put(channel.getName(), ImageOps.buildImageDataOp(channel));
+        }
+        spotiflow.opMap = opMap;
 
         return spotiflow;
     }

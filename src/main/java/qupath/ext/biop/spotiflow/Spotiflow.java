@@ -18,28 +18,17 @@ package qupath.ext.biop.spotiflow;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.PolygonRoi;
-import ij.gui.Roi;
-import ij.gui.Wand;
-import ij.process.ImageProcessor;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
-import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.features.ObjectMeasurements;
-import qupath.lib.analysis.images.ContourTracing;
-import qupath.lib.analysis.images.SimpleImage;
-import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
@@ -47,23 +36,18 @@ import qupath.opencv.ops.ImageDataServer;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 import java.util.List;
 
 /**
@@ -94,7 +78,7 @@ public class Spotiflow {
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
-    protected ImageDataOp op;
+    protected Map<String, ImageDataOp> opMap = new HashMap<>();
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -287,79 +271,85 @@ public class Spotiflow {
         cleanDirectory(tempDirectory);
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
 
+        // loop over the different channels to process
+        for(String channel: opMap.keySet()) {
+            logger.info("Working on channel " + channel);
+            ImageDataOp op = opMap.get(channel);
 
-        // save images in temp folder
-        Map<String, PathObject> correspondanceMap = new HashMap<>();
-        for (PathObject parent: parents) {
-            ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int)parent.getROI().getBoundsWidth(), (int)parent.getROI().getBoundsHeight());
-            RegionRequest region = RegionRequest.createInstance(
-                    opServer.getPath(),
-                    opServer.getDownsampleForResolution(0),
-                    parent.getROI());
-            try {
-                // This applies all ops to the current tile
-                Mat mat = op.apply(imageData, region);
-
-                // Convert to imagePlus object
-                String name = region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
-                ImagePlus image = OpenCVTools.matToImagePlus(name, mat);
-                correspondanceMap.put(name, parent);
-
-                // save the image
-                IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
-            } catch (IOException e){
-                logger.error("Cannot convert ROI to ImagePlus");
-            }
-        }
-
-        // run spotiflow
-        try {
-            logger.info("Running Spotiflow");
-            runSpotiflow();
-        } catch (IOException | InterruptedException e) {
-            logger.error("Failed to Run Spotiflow", e);
-            return;
-        }
-
-        // read results, add points and add measurements
-        for (String name: correspondanceMap.keySet()) {
-            List<PathObject> pointDetectionList = new ArrayList<>();
-            File detectionFile = new File(this.tempDirectory, name + ".csv");
-            PathObject parent = correspondanceMap.get(name);
-
-            if(detectionFile.exists()){
-                String[] regionAttributes = name.split(NAME_SEPARATOR);
-                double x0 = Double.parseDouble(regionAttributes[0]);
-                double y0 = Double.parseDouble(regionAttributes[1]);
-
+            // save images in temp folder
+            Map<String, PathObject> correspondanceMap = new HashMap<>();
+            logger.info("Saving image into the temporary folder");
+            for (PathObject parent : parents) {
+                ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int) parent.getROI().getBoundsWidth(), (int) parent.getROI().getBoundsHeight());
+                RegionRequest region = RegionRequest.createInstance(
+                        opServer.getPath(),
+                        opServer.getDownsampleForResolution(0),
+                        parent.getROI());
                 try {
-                    List<String> detectionList = Files.readAllLines(detectionFile.toPath());
+                    // This applies all ops to the current tile
+                    Mat mat = op.apply(imageData, region);
 
-                    //skip the header and loop over the detections
-                    for (int d = 1; d < detectionList.size(); d++){
-                        String detection = detectionList.get(d);
-                        String[] attributes = detection.split(CSV_SEPARATOR);
-                        double yf = Double.parseDouble(attributes[0]) + y0;
-                        double xf = Double.parseDouble(attributes[1]) + x0;
-                        double intensity = Double.parseDouble(attributes[2]);
-                        double probability = Double.parseDouble(attributes[3]);
-                        pointDetectionList.add(objectToPoint(parent, cal, xf, yf, intensity, probability));
-                    }
+                    // Convert to imagePlus object
+                    String name = channel + NAME_SEPARATOR + region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
+                    ImagePlus image = OpenCVTools.matToImagePlus(name, mat);
+                    correspondanceMap.put(name, parent);
 
+                    // save the image
+                    IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    logger.error("Cannot convert ROI to ImagePlus");
                 }
             }
 
-            // Assign the objects to the parent object
-            parent.setLocked(true);
-            parent.clearChildObjects();
-            parent.addChildObjects(pointDetectionList);
+            // run spotiflow
+            try {
+                logger.info("Running Spotiflow");
+                runSpotiflow();
+            } catch (IOException | InterruptedException e) {
+                logger.error("Failed to Run Spotiflow", e);
+                return;
+            }
+
+            // read results, add points and add measurements
+            for (String name : correspondanceMap.keySet()) {
+                List<PathObject> pointDetectionList = new ArrayList<>();
+                File detectionFile = new File(this.tempDirectory, name + ".csv");
+                PathObject parent = correspondanceMap.get(name);
+
+                if (detectionFile.exists()) {
+                    String[] regionAttributes = name.split(NAME_SEPARATOR);
+                    double x0 = Double.parseDouble(regionAttributes[1]);
+                    double y0 = Double.parseDouble(regionAttributes[2]);
+
+                    try {
+                        List<String> detectionList = Files.readAllLines(detectionFile.toPath());
+
+                        //skip the header and loop over the detections
+                        for (int d = 1; d < detectionList.size(); d++) {
+                            String detection = detectionList.get(d);
+                            String[] attributes = detection.split(CSV_SEPARATOR);
+                            double yf = Double.parseDouble(attributes[0]) + y0;
+                            double xf = Double.parseDouble(attributes[1]) + x0;
+                            double intensity = Double.parseDouble(attributes[2]);
+                            double probability = Double.parseDouble(attributes[3]);
+                            pointDetectionList.add(objectToPoint(parent, cal, xf, yf, intensity, probability));
+                        }
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                // Assign the objects to the parent object
+                parent.setLocked(true);
+                parent.clearChildObjects();
+                parent.addChildObjects(pointDetectionList);
+            }
+
+            // update hierarchy to show the objects
+            imageData.getHierarchy().fireHierarchyChangedEvent(this);
         }
-
-        // update hierarchy to show the objects
-        imageData.getHierarchy().fireHierarchyChangedEvent(this);
-
+    }
 //        // Multistep process
 //        // 1. Extract all images and save to temp folder
 //        // 2. Run Cellpose on folder
@@ -540,7 +530,6 @@ public class Spotiflow {
 //        // Update the hierarchy
 //        imageData.getHierarchy().fireHierarchyChangedEvent(this);
 
-    }
 
     private void cleanDirectory(File directory) {
         // Delete the existing directory
