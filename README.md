@@ -145,12 +145,15 @@ Or you can download the [Spotiflow_detection_template.groovy](src/main/resources
 > Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
 
 ### Getting all available arguments
-To get all arguments that are available, call the help from the `spotiflow` object using `spotiflow.helpPredict()`
+
+All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-spotiflow/).
+You can pass additional options to `spotiflow` by adding `.addParameter()` before the `.build()` line. 
+
+To get the available additional arguments, call the help from the `spotiflow` object using `spotiflow.helpPredict()`
 ```
 def spotiflow = Spotiflow.builder()...build() 
 spotiflow.helpPredict() 
 ```
-
 
 <!--
 Make sure that line 26 `.channels()` has the name of the channel you wish to segment--or you can provide the number, starting with `0` for the first channel.
@@ -162,10 +165,6 @@ Make sure that line 26 `.channels()` has the name of the channel you wish to seg
 > Next, you will need to comment out the `.channels( 'DAPI' )` line by adding `//` at the start.  
 > Finally, in the next line, add this pre-processing step to deconvolve stains and get the first channel, channel `0`:  
 >        `.preprocess( ImageOps.Channels.deconvolve(stains), ImageOps.Channels.extract(0) )`
-
-All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-cellpose/).
-You can pass additional options to `cellpose` by adding `.addParameter()` before the `.build()` line. For example on a macOS computer with Apple Silicon (e.g. M1, M2, M3) 
-you can use `.addParameter("gpu_device", "mps")` to use the GPU.
 
 > [!NOTE]
 > By default the script will generate QuPath *detections* and not *annotations*. In order to obtain annotations (which can be edited and are needed for training, see below), you must uncomment line 44:
