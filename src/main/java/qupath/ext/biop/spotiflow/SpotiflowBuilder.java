@@ -18,7 +18,9 @@ package qupath.ext.biop.spotiflow;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.scripting.QP;
+import qupath.opencv.ops.ImageOps;
 
 import java.io.*;
 import java.util.*;
@@ -48,6 +50,7 @@ public class SpotiflowBuilder {
     private File tempDirectory = null;
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
+    private ColorTransforms.ColorTransform[] channels = new ColorTransforms.ColorTransform[0];
 
     /**
      * Build a spotiflow model
@@ -87,6 +90,47 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder setModelDir(File modelDir) {
         this.modelDir = modelDir;
+        return this;
+    }
+
+    /**
+     * Specify channels. Useful for detecting nuclei for one channel
+     * within a multi-channel image, or potentially for trained models that
+     * support multi-channel input.
+     *
+     * @param channels 0-based indices of the channels to use
+     * @return this builder
+     */
+    public SpotiflowBuilder channels(int... channels) {
+        return channels(Arrays.stream(channels)
+                .mapToObj(c -> ColorTransforms.createChannelExtractor(c))
+                .toArray(ColorTransforms.ColorTransform[]::new));
+    }
+
+    /**
+     * Specify channels by name. Useful for detecting nuclei for one channel
+     * within a multi-channel image, or potentially for trained models that
+     * support multi-channel input.
+     *
+     * @param channels channels names to use
+     * @return this builder
+     */
+    public SpotiflowBuilder channels(String... channels) {
+        return channels(Arrays.stream(channels)
+                .map(c -> ColorTransforms.createChannelExtractor(c))
+                .toArray(ColorTransforms.ColorTransform[]::new));
+    }
+
+    /**
+     * Define the channels (or color transformers) to apply to the input image.
+     * <p>
+     * This makes it possible to supply color deconvolved channels, for example.
+     *
+     * @param channels the channels to use
+     * @return this builder
+     */
+    public SpotiflowBuilder channels(ColorTransforms.ColorTransform... channels) {
+        this.channels = channels.clone();
         return this;
     }
 
@@ -173,6 +217,17 @@ public class SpotiflowBuilder {
         spotiflow.trainingOutputDir = this.trainingOutputDir;
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
+
+        // check number of channel to process. Spotiflow only works with one channel at a time
+        if(this.channels.length == 0){
+            logger.warn("No channels were provided. The first channel is processed", channels.length);
+            channels(0);
+        } else if (this.channels.length > 1) {
+            logger.warn("You supplied {} channels, but Spotiflow needs one channel only. Keeping the first one", channels.length);
+            this.channels = Arrays.copyOf(this.channels, 1);
+        }
+
+        spotiflow.op = ImageOps.buildImageDataOp(channels);
 
         return spotiflow;
     }

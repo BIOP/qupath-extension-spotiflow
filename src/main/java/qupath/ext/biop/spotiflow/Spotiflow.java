@@ -24,6 +24,7 @@ import ij.gui.Wand;
 import ij.process.ImageProcessor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,10 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageDataServer;
+import qupath.opencv.ops.ImageOps;
+import qupath.opencv.tools.OpenCVTools;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -89,6 +94,7 @@ public class Spotiflow {
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
+    protected ImageDataOp op;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -105,28 +111,28 @@ public class Spotiflow {
     }
 
 
-    /**
-     * Build a normalization op that can be based upon the entire (2D) image, rather than only local tiles.
-     * <p>
-     * Example:
-     * <pre>
-     * <code>
-     *   var builder = Cellpose2D.builder()
-     *   	.preprocess(
-     *   		Cellpose2D.imageNormalizationBuilder()
-     *   			.percentiles(0, 99.8)
-     *   			.perChannel(false)
-     *   			.downsample(10)
-     *   			.build()
-     *   	).pixelSize(0.5) // Any other options to customize StarDist2D
-     *   	.build()
-     * </code>
-     * </pre>
-     * <p>
-     * Note that currently this requires downsampling the image to a manageable size.
-     *
-     * @return a builder for a normalization op
-     */
+//    /**
+//     * Build a normalization op that can be based upon the entire (2D) image, rather than only local tiles.
+//     * <p>
+//     * Example:
+//     * <pre>
+//     * <code>
+//     *   var builder = Cellpose2D.builder()
+//     *   	.preprocess(
+//     *   		Cellpose2D.imageNormalizationBuilder()
+//     *   			.percentiles(0, 99.8)
+//     *   			.perChannel(false)
+//     *   			.downsample(10)
+//     *   			.build()
+//     *   	).pixelSize(0.5) // Any other options to customize StarDist2D
+//     *   	.build()
+//     * </code>
+//     * </pre>
+//     * <p>
+//     * Note that currently this requires downsampling the image to a manageable size.
+//     *
+//     * @return a builder for a normalization op
+//     */
 //    public static OpCreators.ImageNormalizationBuilder imageNormalizationBuilder() {
 //        return new OpCreators.ImageNormalizationBuilder();
 //    }
@@ -141,7 +147,7 @@ public class Spotiflow {
 
         return pointObject;
     }
-//
+
 //    private static PathObject cellToObject(PathObject cell, Function<ROI, PathObject> creator) {
 //        var parent = creator.apply(cell.getROI());
 //        var nucleusROI = cell instanceof PathCellObject ? ((PathCellObject) cell).getNucleusROI() : null;
@@ -281,15 +287,25 @@ public class Spotiflow {
         cleanDirectory(tempDirectory);
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
 
+
         // save images in temp folder
         Map<String, PathObject> correspondanceMap = new HashMap<>();
         for (PathObject parent: parents) {
-            RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
+            ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int)parent.getROI().getBoundsWidth(), (int)parent.getROI().getBoundsHeight());
+            RegionRequest region = RegionRequest.createInstance(
+                    opServer.getPath(),
+                    opServer.getDownsampleForResolution(0),
+                    parent.getROI());
             try {
-                ImagePlus image = IJTools.convertToImagePlus(imageData.getServer(), region).getImage();
+                // This applies all ops to the current tile
+                Mat mat = op.apply(imageData, region);
+
+                // Convert to imagePlus object
                 String name = region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
+                ImagePlus image = OpenCVTools.matToImagePlus(name, mat);
                 correspondanceMap.put(name, parent);
 
+                // save the image
                 IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
             } catch (IOException e){
                 logger.error("Cannot convert ROI to ImagePlus");
@@ -1382,204 +1398,204 @@ public class Spotiflow {
 //        }
 //        return null;
 //    }
-
-    private Collection<CandidateObject> readObjectsFromTileFile(TileFile tileFile) {
-        RegionRequest request = tileFile.getTile();
-
-        logger.info("Reading {}", tileFile.getLabelFile().getName());
-        // Open the image
-        ImagePlus label_imp = IJ.openImage(tileFile.getLabelFile().getAbsolutePath());
-        ImageProcessor ip = label_imp.getProcessor();
-
-        Wand wand = new Wand(ip);
-
-        // create range list
-        int width = ip.getWidth();
-        int height = ip.getHeight();
-
-        int[] pixel_width = new int[width];
-        int[] pixel_height = new int[height];
-
-        IntStream.range(0, width - 1).forEach(val -> pixel_width[val] = val);
-        IntStream.range(0, height - 1).forEach(val -> pixel_height[val] = val);
-
-        /*
-         * Will iterate through pixels, when getPixel > 0 ,
-         * then use the magic wand to create a roi
-         * finally set value to 0 and add to the roiManager
-         */
-
-        // will "erase" found ROI by setting them to 0
-        ip.setColor(0);
-        List<CandidateObject> rois = new ArrayList<>();
-
-        for (int yCoordinate : pixel_height) {
-            for (int xCoordinate : pixel_width) {
-                float val = ip.getf(xCoordinate, yCoordinate);
-                if (val > 0.0) {
-                    // use the magic wand at this coordinate
-                    wand.autoOutline(xCoordinate, yCoordinate, val, val);
-                    // if there is a region, then the wand has points
-                    if (wand.npoints > 0) {
-                        // get the Polygon, fill with 0 and add to the manager
-                        Roi roi = new PolygonRoi(wand.xpoints, wand.ypoints, wand.npoints, Roi.FREEROI);
-                        // Name the Roi with the position in the stack followed by the label ID
-                        // ip.fill should use roi, otherwise make a rectangle that erases surrounding pixels
-
-                        CandidateObject o = new CandidateObject(IJTools.convertToROI(roi, -1 * request.getX() / request.getDownsample(), -1 * request.getY() / request.getDownsample(), request.getDownsample(), request.getImagePlane()).getGeometry(), tileFile.getParent());
-
-                        rois.add(o);
-                        ip.fill(roi);
-                    }
-                }
-            }
-        }
-        label_imp.close();
-        return rois;
-    }
-
-    /**
-     * convert a label image to a collection of Geometry objects
-     *
-     * @param tileFile the current tileFile we are processing
-     * @return a collection of CandidateObject that will be added to the total objects
-     */
-    private Collection<CandidateObject> readObjectsFromFileOld(TileFile tileFile) {
-
-        logger.info("Reading objects from file {}", tileFile.getLabelFile().getName());
-        try {
-            BufferedImage bfImage = ImageIO.read(tileFile.getLabelFile());
-            SimpleImage image = ContourTracing.extractBand(bfImage.getRaster(), 0);
-            float[] pixels = SimpleImages.getPixels(image, true);
-
-            float maxValue = 1;
-            for (float p : pixels) {
-                if (p > maxValue)
-                    maxValue = p;
-            }
-            int maxLabel = (int) maxValue;
-
-            Map<Number, CandidateObject> candidates = new TreeMap<>();
-            float lastLabel = Float.NaN;
-            for (float p : pixels) {
-                if (p >= 1 && p <= maxLabel && p != lastLabel && !candidates.containsKey(p)) {
-                    Geometry geometry = ContourTracing.createTracedGeometry(image, p, p, tileFile.getTile());
-                    if (geometry != null && !geometry.isEmpty())
-                        candidates.put(p, new CandidateObject(geometry, tileFile.getParent()));
-                    lastLabel = p;
-                }
-            }
-            bfImage.flush();
-            // Ignore the IDs, because they will be the same across different images, and we don't really need them
-            if (candidates.isEmpty()) return Collections.emptyList();
-            return candidates.values();
-
-        } catch (IOException e) {
-            logger.warn("Image {} could not be read for some reason: \n{}", tileFile.getLabelFile(), e.getLocalizedMessage());
-        }
-        return Collections.emptyList();
-    }
-
-
-    public enum LogParser {
-
-        // Cellpose 2 pattern when training : "Look for "Epoch 0, Time  2.3s, Loss 1.0758, Loss Test 0.6007, LR 0.2000"
-        // Cellpose 3 pattern when training : "5, train_loss=2.6546, test_loss=2.0054, LR=0.1111, time 2.56s"
-        // Omnipose pattern when training   : "Train epoch: 10 | Time: 0.22min | last epoch: 0.74s | <sec/epoch>: 0.73s | <sec/batch>: 0.33s | <Batch Loss>: 5.076259 | <Epoch Loss>: 4.429341"
-        // WARNING: Currently Omnipose does not provide any output to the validation loss (Test loss in Cellpose)
-        CP2("Cellpose v2", ".*Epoch\\s*(?<epoch>\\d+),\\s*Time\\s*(?<time>\\d+\\.\\d)s,\\s*Loss\\s*(?<loss>\\d+\\.\\d+),\\s*Loss Test\\s*(?<val>\\d+\\.\\d+),\\s*LR\\s*(?<lr>\\d+\\.\\d+).*"),
-        CP3("Cellpose v3", ".* (?<epoch>\\d+), train_loss=(?<loss>\\d+\\.\\d+), test_loss=(?<val>\\d+\\.\\d+), LR=(?<lr>\\d+\\.\\d+), time (?<time>\\d+\\.\\d+)s.*"),
-        OMNI("Omnipose", ".*Train epoch: (?<epoch>\\d+) \\| Time: (?<time>\\d+\\.\\d+)min .*\\<Epoch Loss\\>: (?<loss>\\d+\\.\\d+).*");
-
-        private final String name;
-        private final Pattern pattern;
-
-        LogParser(String name, String regex) {
-            this.name = name;
-            this.pattern = Pattern.compile(regex);
-        }
-
-        public String getName() {
-            return this.name;
-        }
-
-        public Pattern getPattern() {
-            return this.pattern;
-        }
-    }
-
-    /**
-     * Static class to hold the correspondence between a
-     * RegionRequest and a saved file.
-     * This also contains a way to infer the resulting image mask file name
-     */
-    private static class TileFile {
-        private final RegionRequest request;
-        private final File imageFile;
-        private final PathObject parent;
-
-        private Collection<CandidateObject> candidates = Collections.emptyList();
-
-
-        TileFile(RegionRequest request, File imageFile, PathObject parent) {
-            this.request = request;
-            this.parent = parent;
-            this.imageFile = imageFile;
-        }
-
-        public File getImageFile() {
-            return imageFile;
-        }
-
-        public File getLabelFile() {
-            return new File(FilenameUtils.removeExtension(imageFile.getAbsolutePath()) + "_cp_masks.tif");
-        }
-
-        public RegionRequest getTile() {
-            return request;
-        }
-
-        public PathObject getParent() {
-            return parent;
-        }
-
-        public Collection<CandidateObject> getCandidates() {
-            return this.candidates;
-        }
-
-        public void setCandidates(Collection<CandidateObject> candidates) {
-            this.candidates = candidates;
-        }
-    }
-
-    /**
-     * Static class that holds each geometry in order to quickly check overlaps
-     */
-    private static class CandidateObject {
-        private final double area;
-        private Geometry geometry;
-        private final PathObject parent; // Perhaps this duplicated things a bit, but we need it to sort the data
-
-        CandidateObject(Geometry geom, PathObject parent) {
-            this.geometry = geom;
-            this.area = geom.getArea();
-            this.parent = parent;
-
-            // Clean up the geometry already
-            geometry = GeometryTools.ensurePolygonal(geometry);
-
-            // Keep only largest polygon?
-            double maxArea = -1;
-            int index = -1;
-
-            for (int i = 0; i < geometry.getNumGeometries(); i++) {
-                double area = geometry.getGeometryN(i).getArea();
-                if (area > maxArea) {
-                    maxArea = area;
-                    index = i;
-                }
-            }
-            geometry = geometry.getGeometryN(index);
-        }
-    }
+//
+//    private Collection<CandidateObject> readObjectsFromTileFile(TileFile tileFile) {
+//        RegionRequest request = tileFile.getTile();
+//
+//        logger.info("Reading {}", tileFile.getLabelFile().getName());
+//        // Open the image
+//        ImagePlus label_imp = IJ.openImage(tileFile.getLabelFile().getAbsolutePath());
+//        ImageProcessor ip = label_imp.getProcessor();
+//
+//        Wand wand = new Wand(ip);
+//
+//        // create range list
+//        int width = ip.getWidth();
+//        int height = ip.getHeight();
+//
+//        int[] pixel_width = new int[width];
+//        int[] pixel_height = new int[height];
+//
+//        IntStream.range(0, width - 1).forEach(val -> pixel_width[val] = val);
+//        IntStream.range(0, height - 1).forEach(val -> pixel_height[val] = val);
+//
+//        /*
+//         * Will iterate through pixels, when getPixel > 0 ,
+//         * then use the magic wand to create a roi
+//         * finally set value to 0 and add to the roiManager
+//         */
+//
+//        // will "erase" found ROI by setting them to 0
+//        ip.setColor(0);
+//        List<CandidateObject> rois = new ArrayList<>();
+//
+//        for (int yCoordinate : pixel_height) {
+//            for (int xCoordinate : pixel_width) {
+//                float val = ip.getf(xCoordinate, yCoordinate);
+//                if (val > 0.0) {
+//                    // use the magic wand at this coordinate
+//                    wand.autoOutline(xCoordinate, yCoordinate, val, val);
+//                    // if there is a region, then the wand has points
+//                    if (wand.npoints > 0) {
+//                        // get the Polygon, fill with 0 and add to the manager
+//                        Roi roi = new PolygonRoi(wand.xpoints, wand.ypoints, wand.npoints, Roi.FREEROI);
+//                        // Name the Roi with the position in the stack followed by the label ID
+//                        // ip.fill should use roi, otherwise make a rectangle that erases surrounding pixels
+//
+//                        CandidateObject o = new CandidateObject(IJTools.convertToROI(roi, -1 * request.getX() / request.getDownsample(), -1 * request.getY() / request.getDownsample(), request.getDownsample(), request.getImagePlane()).getGeometry(), tileFile.getParent());
+//
+//                        rois.add(o);
+//                        ip.fill(roi);
+//                    }
+//                }
+//            }
+//        }
+//        label_imp.close();
+//        return rois;
+//    }
+//
+//    /**
+//     * convert a label image to a collection of Geometry objects
+//     *
+//     * @param tileFile the current tileFile we are processing
+//     * @return a collection of CandidateObject that will be added to the total objects
+//     */
+//    private Collection<CandidateObject> readObjectsFromFileOld(TileFile tileFile) {
+//
+//        logger.info("Reading objects from file {}", tileFile.getLabelFile().getName());
+//        try {
+//            BufferedImage bfImage = ImageIO.read(tileFile.getLabelFile());
+//            SimpleImage image = ContourTracing.extractBand(bfImage.getRaster(), 0);
+//            float[] pixels = SimpleImages.getPixels(image, true);
+//
+//            float maxValue = 1;
+//            for (float p : pixels) {
+//                if (p > maxValue)
+//                    maxValue = p;
+//            }
+//            int maxLabel = (int) maxValue;
+//
+//            Map<Number, CandidateObject> candidates = new TreeMap<>();
+//            float lastLabel = Float.NaN;
+//            for (float p : pixels) {
+//                if (p >= 1 && p <= maxLabel && p != lastLabel && !candidates.containsKey(p)) {
+//                    Geometry geometry = ContourTracing.createTracedGeometry(image, p, p, tileFile.getTile());
+//                    if (geometry != null && !geometry.isEmpty())
+//                        candidates.put(p, new CandidateObject(geometry, tileFile.getParent()));
+//                    lastLabel = p;
+//                }
+//            }
+//            bfImage.flush();
+//            // Ignore the IDs, because they will be the same across different images, and we don't really need them
+//            if (candidates.isEmpty()) return Collections.emptyList();
+//            return candidates.values();
+//
+//        } catch (IOException e) {
+//            logger.warn("Image {} could not be read for some reason: \n{}", tileFile.getLabelFile(), e.getLocalizedMessage());
+//        }
+//        return Collections.emptyList();
+//    }
+//
+//
+//    public enum LogParser {
+//
+//        // Cellpose 2 pattern when training : "Look for "Epoch 0, Time  2.3s, Loss 1.0758, Loss Test 0.6007, LR 0.2000"
+//        // Cellpose 3 pattern when training : "5, train_loss=2.6546, test_loss=2.0054, LR=0.1111, time 2.56s"
+//        // Omnipose pattern when training   : "Train epoch: 10 | Time: 0.22min | last epoch: 0.74s | <sec/epoch>: 0.73s | <sec/batch>: 0.33s | <Batch Loss>: 5.076259 | <Epoch Loss>: 4.429341"
+//        // WARNING: Currently Omnipose does not provide any output to the validation loss (Test loss in Cellpose)
+//        CP2("Cellpose v2", ".*Epoch\\s*(?<epoch>\\d+),\\s*Time\\s*(?<time>\\d+\\.\\d)s,\\s*Loss\\s*(?<loss>\\d+\\.\\d+),\\s*Loss Test\\s*(?<val>\\d+\\.\\d+),\\s*LR\\s*(?<lr>\\d+\\.\\d+).*"),
+//        CP3("Cellpose v3", ".* (?<epoch>\\d+), train_loss=(?<loss>\\d+\\.\\d+), test_loss=(?<val>\\d+\\.\\d+), LR=(?<lr>\\d+\\.\\d+), time (?<time>\\d+\\.\\d+)s.*"),
+//        OMNI("Omnipose", ".*Train epoch: (?<epoch>\\d+) \\| Time: (?<time>\\d+\\.\\d+)min .*\\<Epoch Loss\\>: (?<loss>\\d+\\.\\d+).*");
+//
+//        private final String name;
+//        private final Pattern pattern;
+//
+//        LogParser(String name, String regex) {
+//            this.name = name;
+//            this.pattern = Pattern.compile(regex);
+//        }
+//
+//        public String getName() {
+//            return this.name;
+//        }
+//
+//        public Pattern getPattern() {
+//            return this.pattern;
+//        }
+//    }
+//
+//    /**
+//     * Static class to hold the correspondence between a
+//     * RegionRequest and a saved file.
+//     * This also contains a way to infer the resulting image mask file name
+//     */
+//    private static class TileFile {
+//        private final RegionRequest request;
+//        private final File imageFile;
+//        private final PathObject parent;
+//
+//        private Collection<CandidateObject> candidates = Collections.emptyList();
+//
+//
+//        TileFile(RegionRequest request, File imageFile, PathObject parent) {
+//            this.request = request;
+//            this.parent = parent;
+//            this.imageFile = imageFile;
+//        }
+//
+//        public File getImageFile() {
+//            return imageFile;
+//        }
+//
+//        public File getLabelFile() {
+//            return new File(FilenameUtils.removeExtension(imageFile.getAbsolutePath()) + "_cp_masks.tif");
+//        }
+//
+//        public RegionRequest getTile() {
+//            return request;
+//        }
+//
+//        public PathObject getParent() {
+//            return parent;
+//        }
+//
+//        public Collection<CandidateObject> getCandidates() {
+//            return this.candidates;
+//        }
+//
+//        public void setCandidates(Collection<CandidateObject> candidates) {
+//            this.candidates = candidates;
+//        }
+//    }
+//
+//    /**
+//     * Static class that holds each geometry in order to quickly check overlaps
+//     */
+//    private static class CandidateObject {
+//        private final double area;
+//        private Geometry geometry;
+//        private final PathObject parent; // Perhaps this duplicated things a bit, but we need it to sort the data
+//
+//        CandidateObject(Geometry geom, PathObject parent) {
+//            this.geometry = geom;
+//            this.area = geom.getArea();
+//            this.parent = parent;
+//
+//            // Clean up the geometry already
+//            geometry = GeometryTools.ensurePolygonal(geometry);
+//
+//            // Keep only largest polygon?
+//            double maxArea = -1;
+//            int index = -1;
+//
+//            for (int i = 0; i < geometry.getNumGeometries(); i++) {
+//                double area = geometry.getGeometryN(i).getArea();
+//                if (area > maxArea) {
+//                    maxArea = area;
+//                    index = i;
+//                }
+//            }
+//            geometry = geometry.getGeometryN(index);
+//        }
+//    }
 }

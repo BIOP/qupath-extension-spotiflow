@@ -22,9 +22,10 @@
 
 def spotiflow = Spotiflow.builder()
 //        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in qpProject/spotiflow-temp folder
-//        .setModelDir(new File("path/to/my/model"))           // OPTIONAL
+//        .setModelDir(new File("path/to/my/model"))           // OPTIONAL : path to your own trained model
 //        .setPretrainedModelName("general")                   // OPTIONAL: Default is 'general'
-//        .addParameter("key","value")                         // OPTIONAL: Add any parameter you want, base on the available list
+//        .addParameter("key","value")                         // OPTIONAL: Add more parameter, base on the available ones
+        .channels("SPOT")
         .build()
 
 // Run detection for the selected objects
