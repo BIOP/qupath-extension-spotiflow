@@ -81,6 +81,7 @@ public class Spotiflow {
     protected Map<String, ImageDataOp> opMap = new HashMap<>();
     protected boolean savePredictionImages;
     protected boolean useGPU;
+    protected double probabilityThreshold;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -826,6 +827,11 @@ public class Spotiflow {
             spotiflowArguments.add("--model-dir");
             spotiflowArguments.add(this.modelDir.getAbsolutePath());
         }
+        if(this.probabilityThreshold > 0){
+            spotiflowArguments.add("--probability-threshold");
+            spotiflowArguments.add(String.valueOf(this.probabilityThreshold));
+        }
+
         spotiflowArguments.add("--device");
         if(this.useGPU){
             spotiflowArguments.add("cuda");

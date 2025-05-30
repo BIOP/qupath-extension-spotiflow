@@ -54,6 +54,7 @@ public class SpotiflowBuilder {
     private ColorTransforms.ColorTransform[] channels = new ColorTransforms.ColorTransform[0];
     private boolean savePredictionImages = true;
     private boolean useGPU = true;
+    private double probabilityThreshold = -1;
 
     /**
      * Build a spotiflow model
@@ -93,6 +94,17 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder setPretrainedModelName(String modelName) {
         this.pretrainedModelName = modelName;
+        return this;
+    }
+
+    /**
+     * Set probability threshold for peak detection
+     *
+     * @param probabilityThreshold
+     * @return this builder
+     */
+    public SpotiflowBuilder setProbabilityThreshold(double probabilityThreshold) {
+        this.probabilityThreshold = probabilityThreshold;
         return this;
     }
 
@@ -244,6 +256,7 @@ public class SpotiflowBuilder {
         spotiflow.parameters = this.spotiflowParameters;
         spotiflow.savePredictionImages = this.savePredictionImages;
         spotiflow.useGPU = this.useGPU;
+        spotiflow.probabilityThreshold = this.probabilityThreshold;
 
         // check number of channel to process. Spotiflow only works with one channel at a time
         if(this.channels.length == 0){
