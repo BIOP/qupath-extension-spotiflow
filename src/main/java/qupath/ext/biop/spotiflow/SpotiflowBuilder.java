@@ -53,6 +53,7 @@ public class SpotiflowBuilder {
     private File trainingOutputDir = null;
     private ColorTransforms.ColorTransform[] channels = new ColorTransforms.ColorTransform[0];
     private boolean savePredictionImages = true;
+    private boolean useGPU = true;
 
     /**
      * Build a spotiflow model
@@ -169,6 +170,17 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Set output folder to save a new model
+     *
+     * @param useGPU  override useGPU
+     * @return this builder
+     */
+    public SpotiflowBuilder useGPU(boolean useGPU) {
+        this.useGPU = useGPU;
+        return this;
+    }
+
 
 
     //  SPOTIFLOW OPTIONS
@@ -231,6 +243,7 @@ public class SpotiflowBuilder {
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
         spotiflow.savePredictionImages = this.savePredictionImages;
+        spotiflow.useGPU = this.useGPU;
 
         // check number of channel to process. Spotiflow only works with one channel at a time
         if(this.channels.length == 0){

@@ -80,6 +80,7 @@ public class Spotiflow {
     protected LinkedHashMap<String, String> parameters;
     protected Map<String, ImageDataOp> opMap = new HashMap<>();
     protected boolean savePredictionImages;
+    protected boolean useGPU;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -824,6 +825,12 @@ public class Spotiflow {
         if(this.modelDir != null) {
             spotiflowArguments.add("--model-dir");
             spotiflowArguments.add(this.modelDir.getAbsolutePath());
+        }
+        spotiflowArguments.add("--device");
+        if(this.useGPU){
+            spotiflowArguments.add("cuda");
+        } else {
+            spotiflowArguments.add("cpu");
         }
 
         this.parameters.forEach((parameter, value) -> {
