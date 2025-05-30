@@ -55,6 +55,7 @@ public class SpotiflowBuilder {
     private boolean savePredictionImages = true;
     private boolean useGPU = true;
     private double probabilityThreshold = -1;
+    private double minDistance = -1;
 
     /**
      * Build a spotiflow model
@@ -105,6 +106,17 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder setProbabilityThreshold(double probabilityThreshold) {
         this.probabilityThreshold = probabilityThreshold;
+        return this;
+    }
+
+    /**
+     * Set minimum distance between spots for NMS
+     *
+     * @param minDistance
+     * @return this builder
+     */
+    public SpotiflowBuilder setMinDistance(double minDistance) {
+        this.minDistance = minDistance;
         return this;
     }
 
@@ -257,6 +269,7 @@ public class SpotiflowBuilder {
         spotiflow.savePredictionImages = this.savePredictionImages;
         spotiflow.useGPU = this.useGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
+        spotiflow.minDistance = this.minDistance;
 
         // check number of channel to process. Spotiflow only works with one channel at a time
         if(this.channels.length == 0){

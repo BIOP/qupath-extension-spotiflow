@@ -23,8 +23,11 @@
 def spotiflow = Spotiflow.builder()
 //        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in qpProject/spotiflow-temp folder
 //        .setModelDir(new File("path/to/my/model"))           // OPTIONAL : path to your own trained model
-//        .setPretrainedModelName("general")                   // OPTIONAL: Default is 'general'
-//        .addParameter("key","value")                         // OPTIONAL: Add more parameter, base on the available ones
+//        .setPretrainedModelName("general")                   // OPTIONAL : Default is 'general'
+//        .setMinDistance(2)                                   // OPTIONAL : Positive value
+//        .setProbabilityThreshold(0.2)                        // OPTIONAL : Positive value
+//        .useGPU(true)                                        // OPTIONAL : false to use CPU
+//        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .channels("SPOT")
         .savePredictionImages(false)
         .build()

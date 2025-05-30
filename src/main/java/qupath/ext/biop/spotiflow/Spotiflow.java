@@ -82,6 +82,7 @@ public class Spotiflow {
     protected boolean savePredictionImages;
     protected boolean useGPU;
     protected double probabilityThreshold;
+    protected double minDistance;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -830,6 +831,10 @@ public class Spotiflow {
         if(this.probabilityThreshold > 0){
             spotiflowArguments.add("--probability-threshold");
             spotiflowArguments.add(String.valueOf(this.probabilityThreshold));
+        }
+        if(this.minDistance > 0){
+            spotiflowArguments.add("--min-distance");
+            spotiflowArguments.add(String.valueOf(this.minDistance));
         }
 
         spotiflowArguments.add("--device");
