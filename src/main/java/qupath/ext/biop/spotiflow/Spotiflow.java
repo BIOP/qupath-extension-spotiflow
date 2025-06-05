@@ -18,16 +18,19 @@ package qupath.ext.biop.spotiflow;
 
 import ij.IJ;
 import ij.ImagePlus;
+import javafx.collections.ObservableList;
 import org.apache.commons.io.FileUtils;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -125,10 +128,10 @@ public class Spotiflow {
 //        return new OpCreators.ImageNormalizationBuilder();
 //    }
 //
-    private PathObject objectToPoint(PathObject parent, PixelCalibration cal, double x, double y,
-                                     double intensity, double probability) {
+    private PathObject objectToPoint(PathObject parent, String channelClass, PixelCalibration cal, double x,
+                                     double y, double intensity, double probability) {
         ROI pointROI = ROIs.createPointsROI(x, y, parent.getROI().getImagePlane());
-        PathObject pointObject = PathObjects.createDetectionObject(pointROI, null, null);
+        PathObject pointObject = PathObjects.createDetectionObject(pointROI, PathClass.fromString(channelClass), null);
         ObjectMeasurements.addShapeMeasurements(pointObject, cal);
         pointObject.getMeasurementList().put("Spotiflow intensity", intensity);
         pointObject.getMeasurementList().put("Spotiflow probability", probability);
@@ -342,6 +345,14 @@ public class Spotiflow {
                 return;
             }
 
+            // create new channel PathClass if it doesn't already exist
+            ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
+            PathClass channelPathClass = PathClass.fromString(channel);
+            if (!availablePathClasses.contains(channelPathClass)) {
+                availablePathClasses.add(channelPathClass);
+                QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
+            }
+
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
                 List<PathObject> pointDetectionList = new ArrayList<>();
@@ -364,7 +375,7 @@ public class Spotiflow {
                             double xf = Double.parseDouble(attributes[1]) + x0;
                             double intensity = Double.parseDouble(attributes[2]);
                             double probability = Double.parseDouble(attributes[3]);
-                            pointDetectionList.add(objectToPoint(parent, cal, xf, yf, intensity, probability));
+                            pointDetectionList.add(objectToPoint(parent, channel, cal, xf, yf, intensity, probability));
                         }
 
                     } catch (IOException e) {
