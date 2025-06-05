@@ -82,6 +82,7 @@ public class Spotiflow {
     protected double probabilityThreshold;
     protected double minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
+    protected String doSubpixel;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -865,6 +866,10 @@ public class Spotiflow {
         if(this.minDistance > 0){
             spotiflowArguments.add("--min-distance");
             spotiflowArguments.add(String.valueOf(this.minDistance));
+        }
+        if(!this.doSubpixel.equals("None")){
+            spotiflowArguments.add("--subpix");
+            spotiflowArguments.add(this.doSubpixel);
         }
 
         spotiflowArguments.add("--device");

@@ -29,7 +29,9 @@ def spotiflow = Spotiflow.builder()
 //        .useGPU(false)                                       // OPTIONAL : false to use CPU ; default is true
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
 //        .process3d(true)                                     // OPTIONAL : process the entire zstack ; default false
+//        .doSubpixel(true)                                    // OPTIONAL : true to get subpixel resolution ; false to not. Default: let spotiflow choose
         .channels("SPOT")
+
         .savePredictionImages(false)
         .build()
 

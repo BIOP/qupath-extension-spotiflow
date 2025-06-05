@@ -53,6 +53,7 @@ public class SpotiflowBuilder {
     private boolean savePredictionImages = true;
     private boolean useGPU = true;
     private boolean process3d = false;
+    private String doSubpixel = "None";
     private double probabilityThreshold = -1;
     private double minDistance = -1;
 
@@ -213,6 +214,17 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Allows to go subpixel resolution
+     *
+     * @param doSubpixel  override doSubpixel
+     * @return this builder
+     */
+    public SpotiflowBuilder doSubpixel(boolean doSubpixel) {
+        this.doSubpixel = String.valueOf(doSubpixel);
+        return this;
+    }
+
 
 
     //  SPOTIFLOW OPTIONS
@@ -280,6 +292,7 @@ public class SpotiflowBuilder {
         spotiflow.minDistance = this.minDistance;
         spotiflow.channels = this.channels;
         spotiflow.process3d = this.process3d;
+        spotiflow.doSubpixel = this.doSubpixel;
 
         return spotiflow;
     }
