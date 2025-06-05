@@ -7,16 +7,16 @@ plugins {
 repositories {
     // Use this only for local development!
     //  mavenLocal()
-
+    mavenCentral()
     maven{
         url "https://maven.scijava.org/content/repositories/releases"
     }
 
-    mavenCentral()
-
-    maven {
-        url "https://maven.scijava.org/content/repositories/snapshots"
+    maven{
+        url "https://maven.scijava.org/content/repositories/ome-releases"
     }
+
+
 }
 
 
@@ -26,12 +26,31 @@ ext.qupathVersion = gradle.ext.qupathVersion
 description = 'QuPath extension to use Spotiflow'
 
 version = "0.1.0-rc1"
-
+def bioformatsVersion = libs.versions.bioformats.get()
+def versionOverride = project.properties.getOrDefault('bioformats-version', null)
+if (versionOverride) {
+    println "Using specified Bio-Formats version ${versionOverride}"
+    bioformatsVersion = versionOverride
+}
 dependencies {
     implementation "io.github.qupath:qupath-gui-fx:${qupathVersion}"
+    implementation "io.github.qupath:qupath-extension-bioformats:${qupathVersion}"
     implementation libs.qupath.fxtras
     implementation "commons-io:commons-io:2.15.0"
     implementation libs.bundles.logging
+
+    implementation "ome:formats-gpl:${bioformatsVersion}", {
+        exclude group: 'xalan', module: 'serializer'
+        exclude group: 'xalan', module: 'xalan'
+        exclude group: 'io.minio', module: 'minio'
+        exclude group: 'cisd', module: 'jhdf5'
+        exclude group: 'commons-codec', module: 'commons-codec'
+        exclude group: 'commons-logging', module: 'commons-logging'
+        exclude group: 'edu.ucar', module: 'cdm'
+        exclude group: 'edu.ucar', module: 'cdm-core'
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'com.google.code.findbugs', module: 'annotations'
+    }
 }
 
 processResources {

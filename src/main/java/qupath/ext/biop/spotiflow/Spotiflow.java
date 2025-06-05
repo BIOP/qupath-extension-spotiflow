@@ -16,11 +16,8 @@
 
 package qupath.ext.biop.spotiflow;
 
-import ij.IJ;
-import ij.ImagePlus;
 import javafx.collections.ObservableList;
 import org.apache.commons.io.FileUtils;
-import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
@@ -28,16 +25,13 @@ import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.writers.ome.OMEPyramidWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ops.ImageDataOp;
-import qupath.opencv.ops.ImageDataServer;
-import qupath.opencv.ops.ImageOps;
-import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -81,16 +75,17 @@ public class Spotiflow {
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
-    protected Map<String, ImageDataOp> opMap = new HashMap<>();
     protected boolean savePredictionImages;
     protected boolean useGPU;
     protected double probabilityThreshold;
     protected double minDistance;
+    protected Map<String, Integer> channels = new HashMap<>();
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
+    private final String FILE_EXTENSION = ".ome.tif";
 
     /**
      * Create a builder to customize detection parameters.
@@ -282,7 +277,7 @@ public class Spotiflow {
         }
 
         // loop over the different channels to process
-        for(String channel: opMap.keySet()) {
+        for(String channel: channels.keySet()) {
             logger.info("Working on channel {}", channel);
             Map<String, PathObject> correspondanceMap = new HashMap<>();
             Collection<PathObject> missingParents = new ArrayList<>();
@@ -298,7 +293,7 @@ public class Spotiflow {
                             (int)region.getBoundsWidth() + NAME_SEPARATOR +
                             (int)region.getBoundsHeight();
 
-                    File optFile = new File(tempDirectory, name + ".tif");
+                    File optFile = new File(tempDirectory, name + FILE_EXTENSION);
                     if(optFile.exists()){
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
                         correspondanceMap.put(name, parent);
@@ -309,32 +304,29 @@ public class Spotiflow {
                 }
             }
 
-            ImageDataOp op = opMap.get(channel);
-
             // save images in temp folder
             for (PathObject parent : missingParents) {
                 logger.info("Saving image(s) into the temporary folder");
-                try(ImageDataServer<BufferedImage> opServer = ImageOps.buildServer(imageData, op, cal, (int) parent.getROI().getBoundsWidth(), (int) parent.getROI().getBoundsHeight())){
-                    RegionRequest region = RegionRequest.createInstance(
-                            opServer.getPath(),
-                            opServer.getDownsampleForResolution(0),
-                            parent.getROI());
+                try{
+                    RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
-                    // This applies all ops to the current tile
-                    Mat mat = op.apply(imageData, region);
-
-                    // Convert to imagePlus object
                     String name = channel + NAME_SEPARATOR + region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
-                    ImagePlus image = OpenCVTools.matToImagePlus(name, mat);
                     correspondanceMap.put(name, parent);
+                    String outputPath = new File(tempDirectory, name + FILE_EXTENSION).getAbsolutePath();
 
-                    // save the image
-                    IJ.save(image, new File(tempDirectory, name + ".tif").getAbsolutePath());
+                    // write the ome.tiff
+                    (new OMEPyramidWriter.Builder(imageData.getServer()))
+                            .parallelize()
+                            .tileSize(512)
+                            .region(region)
+                            .scaledDownsampling(1,2)
+                            .channels(channels.get(channel))
+                            .build()
+                            .writeSeries(outputPath);
                 } catch (Exception e) {
                     logger.error("Cannot convert ROI to ImagePlus");
                 }
             }
-
 
             // run spotiflow
             try {
@@ -356,7 +348,7 @@ public class Spotiflow {
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
                 List<PathObject> pointDetectionList = new ArrayList<>();
-                File detectionFile = new File(this.tempDirectory, name + ".csv");
+                File detectionFile = new File(this.tempDirectory, name + ".ome.csv");
                 PathObject parent = correspondanceMap.get(name);
 
                 if (detectionFile.exists()) {

@@ -18,11 +18,9 @@ package qupath.ext.biop.spotiflow;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.scripting.QP;
-import qupath.opencv.ops.ImageDataOp;
-import qupath.opencv.ops.ImageOps;
-
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
 
@@ -51,7 +49,7 @@ public class SpotiflowBuilder {
     private File tempDirectory = null;
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
-    private ColorTransforms.ColorTransform[] channels = new ColorTransforms.ColorTransform[0];
+    private Map<String, Integer> channels = new HashMap<>();
     private boolean savePredictionImages = true;
     private boolean useGPU = true;
     private double probabilityThreshold = -1;
@@ -140,9 +138,11 @@ public class SpotiflowBuilder {
      * @return this builder
      */
     public SpotiflowBuilder channels(int... channels) {
-        return channels(Arrays.stream(channels)
-                .mapToObj(c -> ColorTransforms.createChannelExtractor(c))
-                .toArray(ColorTransforms.ColorTransform[]::new));
+        this.channels = new HashMap<>();
+        for(int channel : channels){
+            this.channels.put(QP.getCurrentImageData().getServer().getChannel(channel).getName(), channel);
+        }
+        return this;
     }
 
     /**
@@ -154,21 +154,17 @@ public class SpotiflowBuilder {
      * @return this builder
      */
     public SpotiflowBuilder channels(String... channels) {
-        return channels(Arrays.stream(channels)
-                .map(c -> ColorTransforms.createChannelExtractor(c))
-                .toArray(ColorTransforms.ColorTransform[]::new));
-    }
-
-    /**
-     * Define the channels (or color transformers) to apply to the input image.
-     * <p>
-     * This makes it possible to supply color deconvolved channels, for example.
-     *
-     * @param channels the channels to use
-     * @return this builder
-     */
-    public SpotiflowBuilder channels(ColorTransforms.ColorTransform... channels) {
-        this.channels = channels.clone();
+        this.channels = new HashMap<>();
+        ImageServer<BufferedImage> currentServer = QP.getCurrentImageData().getServer();
+        for(String channel : channels){
+            for(int i = 0; i < currentServer.nChannels(); i++) {
+                String chName = currentServer.getChannel(i).getName();
+                if (channel.equals(chName)) {
+                    this.channels.put(chName, i);
+                    break;
+                }
+            }
+        }
         return this;
     }
 
@@ -270,22 +266,7 @@ public class SpotiflowBuilder {
         spotiflow.useGPU = this.useGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
-
-        // check number of channel to process. Spotiflow only works with one channel at a time
-        if(this.channels.length == 0){
-            logger.warn("No channels were provided. The first channel will be processed");
-            String channelName =  QP.getCurrentImageData().getServer().getChannel(0).getName();
-            channels(channelName);
-        } else if (this.channels.length > 1) {
-            logger.warn("You supplied {} channels, but Spotiflow needs one channel only. Keeping the first one", channels.length);
-            this.channels = Arrays.copyOf(this.channels, 1);
-        }
-
-        Map<String, ImageDataOp> opMap = new HashMap<>();
-        for(ColorTransforms.ColorTransform channel: this.channels){
-            opMap.put(channel.getName(), ImageOps.buildImageDataOp(channel));
-        }
-        spotiflow.opMap = opMap;
+        spotiflow.channels = this.channels;
 
         return spotiflow;
     }
