@@ -45,7 +45,7 @@ if (pathObjects.isEmpty()) {
 // print the available arguments for prediction
 //spotiflow.helpPredict()
 
-spotiflow.detectObjects( imageData, pathObjects )
+spotiflow.detectObjects( imageData, getProjectEntry().getImageName(), pathObjects )
 
 // You could do some post-processing here, e.g. to remove objects that are too small, but it is usually better to
 // do this in a separate script so you can see the results before deleting anything.

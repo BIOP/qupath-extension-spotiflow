@@ -89,6 +89,7 @@ public class Spotiflow {
     private final String NAME_SEPARATOR = "_";
     private final String FILE_EXTENSION = ".ome.tif";
     private final String ALL_SLICES = "allZ";
+    private File imageDirectory = null;
 
     /**
      * Create a builder to customize detection parameters.
@@ -260,8 +261,8 @@ public class Spotiflow {
      * @param imageData the image data containing the object
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
-    public void detectObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
-        runInPool(() -> detectObjectsImpl(imageData, parents));
+    public void detectObjects(ImageData<BufferedImage> imageData, String imageName, Collection<? extends PathObject> parents) {
+        runInPool(() -> detectObjectsImpl(imageData, imageName, parents));
     }
 
     /**
@@ -270,7 +271,7 @@ public class Spotiflow {
      * @param imageData the image data containing the object
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
-    public void detectObjectsImpl(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
+    private void detectObjectsImpl(ImageData<BufferedImage> imageData, String imageName, Collection<? extends PathObject> parents) {
 
         Objects.requireNonNull(parents);
 
@@ -279,6 +280,11 @@ public class Spotiflow {
         if(savePredictionImages) {
             cleanDirectory(tempDirectory);
         }
+
+        this.imageDirectory = new File(tempDirectory, imageName);
+        this.imageDirectory = process3d ? new File(this.imageDirectory, "3D") : this.imageDirectory;
+        if(!this.imageDirectory.exists())
+            this.imageDirectory.mkdirs();
 
         // loop over the different channels to process
         for(String channel: channels.keySet()) {
@@ -299,7 +305,7 @@ public class Spotiflow {
 
                     name += process3d ? ALL_SLICES : parent.getROI().getZ();
 
-                    File optFile = new File(tempDirectory, name + FILE_EXTENSION);
+                    File optFile = new File(this.imageDirectory, name + FILE_EXTENSION);
                     if(optFile.exists()){
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
                         correspondanceMap.put(name, parent);
@@ -325,7 +331,7 @@ public class Spotiflow {
                     name += process3d ? ALL_SLICES : parent.getROI().getZ();
 
                     correspondanceMap.put(name, parent);
-                    String outputPath = new File(tempDirectory, name + FILE_EXTENSION).getAbsolutePath();
+                    String outputPath = new File(this.imageDirectory, name + FILE_EXTENSION).getAbsolutePath();
 
                     // write the ome.tiff
                     OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
@@ -366,7 +372,7 @@ public class Spotiflow {
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
                 List<PathObject> pointDetectionList = new ArrayList<>();
-                File detectionFile = new File(this.tempDirectory, name + ".ome.csv");
+                File detectionFile = new File(this.imageDirectory, name + ".ome.csv");
                 PathObject parent = correspondanceMap.get(name);
 
                 if (detectionFile.exists()) {
@@ -839,9 +845,9 @@ public class Spotiflow {
 
         //TODO set it as for cellpose when available
         //spotiflowArguments.add("spotiflow-predict");
-        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
         spotiflowArguments.add("--out-dir");
-        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
         spotiflowArguments.add("--verbose");
 
         if(this.pretrainedModelName != null) {
