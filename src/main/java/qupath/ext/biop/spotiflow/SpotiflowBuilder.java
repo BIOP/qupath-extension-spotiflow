@@ -52,6 +52,7 @@ public class SpotiflowBuilder {
     private Map<String, Integer> channels = new HashMap<>();
     private boolean savePredictionImages = true;
     private boolean useGPU = true;
+    private boolean process3d = false;
     private double probabilityThreshold = -1;
     private double minDistance = -1;
 
@@ -191,13 +192,24 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Set output folder to save a new model
+     * Enable CPU / GPU usage
      *
      * @param useGPU  override useGPU
      * @return this builder
      */
     public SpotiflowBuilder useGPU(boolean useGPU) {
         this.useGPU = useGPU;
+        return this;
+    }
+
+    /**
+     * Allows to process all slices
+     *
+     * @param process3d  override process3d
+     * @return this builder
+     */
+    public SpotiflowBuilder process3d(boolean process3d) {
+        this.process3d = process3d;
         return this;
     }
 
@@ -267,6 +279,7 @@ public class SpotiflowBuilder {
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
         spotiflow.channels = this.channels;
+        spotiflow.process3d = this.process3d;
 
         return spotiflow;
     }

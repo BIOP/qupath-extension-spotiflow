@@ -29,6 +29,7 @@ import qupath.lib.images.writers.ome.OMEPyramidWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -77,6 +78,7 @@ public class Spotiflow {
     protected LinkedHashMap<String, String> parameters;
     protected boolean savePredictionImages;
     protected boolean useGPU;
+    protected boolean process3d;
     protected double probabilityThreshold;
     protected double minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
@@ -86,6 +88,7 @@ public class Spotiflow {
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
     private final String FILE_EXTENSION = ".ome.tif";
+    private final String ALL_SLICES = "allZ";
 
     /**
      * Create a builder to customize detection parameters.
@@ -123,9 +126,10 @@ public class Spotiflow {
 //        return new OpCreators.ImageNormalizationBuilder();
 //    }
 //
-    private PathObject objectToPoint(PathObject parent, String channelClass, PixelCalibration cal, double x,
-                                     double y, double intensity, double probability) {
-        ROI pointROI = ROIs.createPointsROI(x, y, parent.getROI().getImagePlane());
+    private PathObject objectToPoint(String channelClass, PixelCalibration cal, double x,
+                                     double y, double z, int c, int t, double intensity, double probability) {
+        ImagePlane imagePlane = ImagePlane.getPlaneWithChannel(c, (int) z, t);
+        ROI pointROI = ROIs.createPointsROI(x, y, imagePlane);
         PathObject pointObject = PathObjects.createDetectionObject(pointROI, PathClass.fromString(channelClass), null);
         ObjectMeasurements.addShapeMeasurements(pointObject, cal);
         pointObject.getMeasurementList().put("Spotiflow intensity", intensity);
@@ -293,6 +297,8 @@ public class Spotiflow {
                             (int)region.getBoundsWidth() + NAME_SEPARATOR +
                             (int)region.getBoundsHeight();
 
+                    name += process3d ? ALL_SLICES : parent.getROI().getZ();
+
                     File optFile = new File(tempDirectory, name + FILE_EXTENSION);
                     if(optFile.exists()){
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
@@ -310,19 +316,31 @@ public class Spotiflow {
                 try{
                     RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
-                    String name = channel + NAME_SEPARATOR + region.getX() + NAME_SEPARATOR + region.getY() + NAME_SEPARATOR + region.getWidth() + NAME_SEPARATOR + region.getHeight();
+                    String name = channel + NAME_SEPARATOR +
+                            region.getX() + NAME_SEPARATOR +
+                            region.getY() + NAME_SEPARATOR +
+                            region.getWidth() + NAME_SEPARATOR +
+                            region.getHeight() + NAME_SEPARATOR;
+
+                    name += process3d ? ALL_SLICES : parent.getROI().getZ();
+
                     correspondanceMap.put(name, parent);
                     String outputPath = new File(tempDirectory, name + FILE_EXTENSION).getAbsolutePath();
 
                     // write the ome.tiff
-                    (new OMEPyramidWriter.Builder(imageData.getServer()))
-                            .parallelize()
-                            .tileSize(512)
-                            .region(region)
-                            .scaledDownsampling(1,2)
-                            .channels(channels.get(channel))
-                            .build()
-                            .writeSeries(outputPath);
+                    OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
+                    builder.parallelize()
+                           .tileSize(512)
+                           .region(region)
+                           .scaledDownsampling(1, 2)
+                           .channels(channels.get(channel));
+
+                    // process all slices
+                    if(process3d)
+                        builder.allZSlices();
+
+                    // save ome-tiff
+                    builder.build().writeSeries(outputPath);
                 } catch (Exception e) {
                     logger.error("Cannot convert ROI to ImagePlus");
                 }
@@ -358,16 +376,19 @@ public class Spotiflow {
 
                     try {
                         List<String> detectionList = Files.readAllLines(detectionFile.toPath());
+                        int pos = process3d ? 1 : 0;
+                        ImagePlane parentPlane = parent.getROI().getImagePlane();
 
                         //skip the header and loop over the detections
                         for (int d = 1; d < detectionList.size(); d++) {
                             String detection = detectionList.get(d);
                             String[] attributes = detection.split(CSV_SEPARATOR);
-                            double yf = Double.parseDouble(attributes[0]) + y0;
-                            double xf = Double.parseDouble(attributes[1]) + x0;
-                            double intensity = Double.parseDouble(attributes[2]);
-                            double probability = Double.parseDouble(attributes[3]);
-                            pointDetectionList.add(objectToPoint(parent, channel, cal, xf, yf, intensity, probability));
+                            double zf = process3d ? Double.parseDouble(attributes[0]) : parentPlane.getZ();
+                            double yf = Double.parseDouble(attributes[pos]) + y0;
+                            double xf = Double.parseDouble(attributes[pos+1]) + x0;
+                            double intensity = Double.parseDouble(attributes[pos+2]);
+                            double probability = Double.parseDouble(attributes[pos+3]);
+                            pointDetectionList.add(objectToPoint(channel, cal, xf, yf, zf, parentPlane.getC(), parentPlane.getT(), intensity, probability));
                         }
 
                     } catch (IOException e) {

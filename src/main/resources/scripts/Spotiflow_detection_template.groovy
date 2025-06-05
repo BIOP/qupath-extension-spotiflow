@@ -23,11 +23,12 @@
 def spotiflow = Spotiflow.builder()
 //        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in qpProject/spotiflow-temp folder
 //        .setModelDir(new File("path/to/my/model"))           // OPTIONAL : path to your own trained model
-//        .setPretrainedModelName("general")                   // OPTIONAL : Default is 'general'
+//        .setPretrainedModelName("smfish_3d")                 // OPTIONAL : Default is 'general'
 //        .setMinDistance(2)                                   // OPTIONAL : Positive value
 //        .setProbabilityThreshold(0.2)                        // OPTIONAL : Positive value
-//        .useGPU(true)                                        // OPTIONAL : false to use CPU
+//        .useGPU(false)                                       // OPTIONAL : false to use CPU ; default is true
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
+//        .process3d(true)                                     // OPTIONAL : process the entire zstack ; default false
         .channels("SPOT")
         .savePredictionImages(false)
         .build()
