@@ -56,6 +56,8 @@ public class SpotiflowBuilder {
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
     private double minDistance = -1;
+    private boolean classChannelName = false;
+    private String pathClass = null;
 
     /**
      * Build a spotiflow model
@@ -225,7 +227,25 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Allows to go subpixel resolution
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder setClassChannelName() {
+        this.classChannelName = true;
+        return this;
+    }
 
+    /**
+     * Allows to go subpixel resolution
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder setClass(String pathClass) {
+        this.pathClass = pathClass;
+        return this;
+    }
 
     //  SPOTIFLOW OPTIONS
     // ------------------
@@ -293,6 +313,8 @@ public class SpotiflowBuilder {
         spotiflow.channels = this.channels;
         spotiflow.process3d = this.process3d;
         spotiflow.doSubpixel = this.doSubpixel;
+        spotiflow.pathClass = this.pathClass;
+        spotiflow.classChannelName = this.classChannelName;
 
         return spotiflow;
     }

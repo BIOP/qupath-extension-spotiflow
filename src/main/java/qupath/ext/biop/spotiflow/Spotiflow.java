@@ -83,6 +83,8 @@ public class Spotiflow {
     protected double minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
     protected String doSubpixel;
+    protected String pathClass;
+    protected boolean classChannelName;
 
     private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
@@ -362,9 +364,15 @@ public class Spotiflow {
                 return;
             }
 
+
             // create new channel PathClass if it doesn't already exist
+            String detectionClass = this.pathClass;
+            if(this.classChannelName){
+                detectionClass = channel;
+            }
+
             ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
-            PathClass channelPathClass = PathClass.fromString(channel);
+            PathClass channelPathClass = PathClass.fromString(detectionClass);
             if (!availablePathClasses.contains(channelPathClass)) {
                 availablePathClasses.add(channelPathClass);
                 QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
@@ -395,7 +403,8 @@ public class Spotiflow {
                             double xf = Double.parseDouble(attributes[pos+1]) + x0;
                             double intensity = Double.parseDouble(attributes[pos+2]);
                             double probability = Double.parseDouble(attributes[pos+3]);
-                            pointDetectionList.add(objectToPoint(channel, cal, xf, yf, zf, parentPlane.getC(), parentPlane.getT(), intensity, probability));
+                            pointDetectionList.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
+                                    parentPlane.getT(), intensity, probability));
                         }
 
                     } catch (IOException e) {
