@@ -31,6 +31,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -38,6 +39,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -279,6 +281,7 @@ public class Spotiflow {
         Objects.requireNonNull(parents);
 
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
+        int nZ = imageData.getServer().nZSlices();
 
         if(savePredictionImages) {
             cleanDirectory(tempDirectory);
@@ -304,7 +307,7 @@ public class Spotiflow {
                             (int)region.getBoundsX() + NAME_SEPARATOR +
                             (int)region.getBoundsY() + NAME_SEPARATOR +
                             (int)region.getBoundsWidth() + NAME_SEPARATOR +
-                            (int)region.getBoundsHeight();
+                            (int)region.getBoundsHeight() + NAME_SEPARATOR;
 
                     name += process3d ? ALL_SLICES : parent.getROI().getZ();
 
@@ -378,9 +381,11 @@ public class Spotiflow {
                 QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
             }
 
+            Map<Integer, PathObject> annotationZMap = new HashMap<>();
+            Map<PathObject, List<PathObject>> annotationChildMap = new HashMap<>();
+
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
-                List<PathObject> pointDetectionList = new ArrayList<>();
                 File detectionFile = new File(this.imageDirectory, name + ".ome.csv");
                 PathObject parent = correspondanceMap.get(name);
 
@@ -393,6 +398,21 @@ public class Spotiflow {
                         List<String> detectionList = Files.readAllLines(detectionFile.toPath());
                         int pos = process3d ? 1 : 0;
                         ImagePlane parentPlane = parent.getROI().getImagePlane();
+                        annotationZMap.put(parentPlane.getZ(), parent);
+
+                        // duplicate current annotation across the different Z
+                        if(process3d){
+                            for(int z = 0; z < nZ; z++){
+                                if(z == parentPlane.getZ())
+                                    continue;
+                                ROI roi = GeometryTools.geometryToROI(parent.getROI().getGeometry(),
+                                        ImagePlane.getPlaneWithChannel(parentPlane.getC(), z, parentPlane.getT()));
+                                PathObject duplicatedPathObject = PathObjects.createAnnotationObject(roi, parent.getPathClass());
+                                duplicatedPathObject.setName(parent.getName());
+                                imageData.getHierarchy().addObject(duplicatedPathObject);
+                                annotationZMap.put(z, duplicatedPathObject);
+                            }
+                        }
 
                         //skip the header and loop over the detections
                         for (int d = 1; d < detectionList.size(); d++) {
@@ -403,19 +423,31 @@ public class Spotiflow {
                             double xf = Double.parseDouble(attributes[pos+1]) + x0;
                             double intensity = Double.parseDouble(attributes[pos+2]);
                             double probability = Double.parseDouble(attributes[pos+3]);
-                            pointDetectionList.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
+
+                            // populate the list of child according to the current Z
+                            List<PathObject> child;
+                            PathObject parentZAnnotation = annotationZMap.get(((int) zf));
+                            if(annotationChildMap.containsKey(parentZAnnotation)){
+                                child = annotationChildMap.get(parentZAnnotation);
+                            }else{
+                                child = new ArrayList<>();
+                            }
+                            child.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
                                     parentPlane.getT(), intensity, probability));
+                            annotationChildMap.put(parentZAnnotation, child);
                         }
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 }
+            }
 
-                // Assign the objects to the parent object
-                parent.setLocked(true);
-                parent.clearChildObjects();
-                parent.addChildObjects(pointDetectionList);
+            // Assign the objects to the parent object
+            for(PathObject parentZAnnotation: annotationChildMap.keySet()){
+                parentZAnnotation.setLocked(true);
+                parentZAnnotation.clearChildObjects();
+                parentZAnnotation.addChildObjects(annotationChildMap.get(parentZAnnotation));
             }
 
             // update hierarchy to show the objects
