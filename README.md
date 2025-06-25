@@ -1,6 +1,6 @@
-<!--
-Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://zenodo.org/doi/10.5281/zenodo.10829243)
--->
+
+Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://doi.org/10.5281/zenodo.15739441)
+
 
 
 # QuPath Spotiflow extension
@@ -14,12 +14,12 @@ This repo adds some support to use [Spotiflow](https://github.com/weigertlab/spo
 # Citing
 
 Please cite this extension by linking it to this GitHub or to the release you used, and feel free to give us a star ⭐️
-<!--
+
 As this code is neither novel nor entirely original, there is no linked publication, but you can use the following Zenodo entry:
 
 
-[![DOI](https://zenodo.org/badge/417468733.svg)](https://zenodo.org/doi/10.5281/zenodo.10829243)
--->
+[![DOI](https://zenodo.org/badge/417468733.svg)](https://doi.org/10.5281/zenodo.15739441)
+
 
 ## Code authorship
 **Author**: Rémy Dornier (1)
