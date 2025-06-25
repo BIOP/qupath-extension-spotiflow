@@ -33,7 +33,6 @@ def spotiflow = Spotiflow.builder()
 //        .setClass("ClassName")                               // OPTIONAL : set the same class for all detections. Default: not assign any classes
 //        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
         .channels("SPOT")
-
         .savePredictionImages(false)
         .build()
 
