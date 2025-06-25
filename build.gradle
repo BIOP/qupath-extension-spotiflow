@@ -15,17 +15,16 @@ repositories {
     maven{
         url "https://maven.scijava.org/content/repositories/ome-releases"
     }
-
-
 }
-
 
 ext.moduleName = 'qupath.extension.spotiflow'
 ext.qupathVersion = gradle.ext.qupathVersion
 
+archivesBaseName = 'qupath-extension-spotiflow'
 description = 'QuPath extension to use Spotiflow'
-
+group = "ch.epfl.biop"
 version = "0.1.0-rc3-SNAPSHOT"
+
 def bioformatsVersion = libs.versions.bioformats.get()
 def versionOverride = project.properties.getOrDefault('bioformats-version', null)
 if (versionOverride) {
@@ -85,9 +84,14 @@ java {
  */
 jar {
     manifest {
-        attributes("Implementation-Title": project.name,
-                "Implementation-Version": archiveVersion,
-                "Automatic-Module-Name": "io.github." + moduleName)
+        def manifestAttributes = [
+                "Implementation-Vendor" : "QuPath developers",
+                "Implementation-Title"  : project.name,
+                "Implementation-Version": project.version,
+                "Automatic-Module-Name" : "ch.epfl.biop." + moduleName,
+                "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+        ]
+        attributes(manifestAttributes)
     }
 }
 
@@ -136,7 +140,6 @@ publishing {
 
     publications {
         mavenJava(MavenPublication) {
-            groupId = 'io.github.qupath'
             from components.java
 
             pom {
