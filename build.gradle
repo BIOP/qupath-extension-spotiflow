@@ -23,7 +23,7 @@ ext.qupathVersion = gradle.ext.qupathVersion
 archivesBaseName = 'qupath-extension-spotiflow'
 description = 'QuPath extension to use Spotiflow'
 group = "ch.epfl.biop"
-version = "0.1.0-rc3-SNAPSHOT"
+version = "0.1.0"
 
 def bioformatsVersion = libs.versions.bioformats.get()
 def versionOverride = project.properties.getOrDefault('bioformats-version', null)
