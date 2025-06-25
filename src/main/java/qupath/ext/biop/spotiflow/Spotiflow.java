@@ -18,6 +18,7 @@ package qupath.ext.biop.spotiflow;
 
 import javafx.collections.ObservableList;
 import org.apache.commons.io.FileUtils;
+import org.controlsfx.tools.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -48,6 +50,7 @@ import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Spot detection based on the following method:
@@ -862,7 +865,16 @@ public class Spotiflow {
         String pythonPath = spotiflowSetup.getSpotiflowPythonPath();
 
         //TODO try to mimic cellpose here and remove those line + function argument when possible
-        pythonPath = new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
+        switch (Platform.getCurrent()) {
+            case UNIX:
+            case OSX:
+                pythonPath = new File(pythonPath).getParent() + File.separator + command;
+                break;
+            case WINDOWS:
+            default:
+                pythonPath = new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
+                break;
+        }
 
         return new VirtualEnvironmentRunner(pythonPath, type, condaPath, this.getClass().getSimpleName());
     }
