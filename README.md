@@ -5,7 +5,7 @@ Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://zenodo.org/
 
 # QuPath Spotiflow extension
 
-This repo adds some support to use Spotiflow within QuPath through a Python virtual environment.
+This repo adds some support to use [Spotiflow](https://github.com/weigertlab/spotiflow) within QuPath through a Python virtual environment.
 
 > [!WARNING]
 > This extension is developed for QuPath 0.5.x
@@ -93,9 +93,9 @@ where `{HOME}` will be the location of your home directory, typically `/Users/us
 
 ## Step 2: Install the QuPath Spotiflow extension
 
-Download the latest `qupath-extension-spotiflow-[version].zip` file from [releases](https://github.com/biop/qupath-extension-spotiflow/releases) and unzip it into your `extensions` directory. 
+Download the latest `qupath-extension-spotiflow-[version].jar` file from [releases](https://github.com/biop/qupath-extension-spotiflow/releases) and unzip it into your `extensions` directory. 
 
-If your extensions directory is unset, unzip and drag & drop `qupath-extension-spotiflow-[version].jar` onto the main QuPath window. You'll be prompted to select a QuPath user directory.
+If your extensions directory is unset, drag & drop `qupath-extension-spotiflow-[version].jar` onto the main QuPath window. You'll be prompted to select a QuPath user directory.
 The extension will then be copied to a location inside that directory.
 
 <!--
@@ -128,6 +128,16 @@ QuPath due to permission issues.
 
 One trick is to **run Spotiflow from the command line** once with the model you want to use. The download should work from there,
 and you can then use it within the QuPath Extension Spotiflow.
+
+```
+spotiflow-predict path/to/your/image
+```
+
+or, to download a [specific model](https://weigertlab.github.io/spotiflow/pretrained.html), different from the `general` one
+
+```
+spotiflow-predict path/to/your/image --pretrained-model hybiss
+```
 
 # Using the Spotiflow QuPath Extension
 
