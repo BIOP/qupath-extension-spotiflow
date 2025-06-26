@@ -26,7 +26,7 @@ def spotiflow = Spotiflow.builder()
 //        .setPretrainedModelName("smfish_3d")                 // OPTIONAL : Default is 'general'
 //        .setMinDistance(2)                                   // OPTIONAL : Positive value
 //        .setProbabilityThreshold(0.2)                        // OPTIONAL : Positive value
-//        .useGPU(false)                                       // OPTIONAL : false to use CPU ; default is true
+//        .disableGPU(true)                                    // OPTIONAL : true to force CPU ; default is false (use GPU if available)
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
 //        .process3d(true)                                     // OPTIONAL : process the entire zstack ; default false
 //        .doSubpixel(true)                                    // OPTIONAL : true to get subpixel resolution ; false to not. Default: let spotiflow choose
