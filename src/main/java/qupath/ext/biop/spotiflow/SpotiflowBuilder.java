@@ -153,8 +153,8 @@ public class SpotiflowBuilder {
 
     /**
      * Specify channels by name. Useful for detecting nuclei for one channel
-     * within a multi-channel image, or potentially for trained models that
-     * support multi-channel input.
+     * within a multichannel image, or potentially for trained models that
+     * support multichannel input.
      *
      * @param channels channels names to use
      * @return this builder
@@ -254,8 +254,8 @@ public class SpotiflowBuilder {
     /**
      * Generic means of adding a spotiflow parameter
      *
-     * @param flagName  the name of the flag, eg. "save_every"
-     * @param flagValue the value that is linked to the flag, eg. "20". Can be an empty string or null if it is not needed
+     * @param flagName  the name of the flag, e.g. "save_every"
+     * @param flagValue the value that is linked to the flag, e.g. "20". Can be an empty string or null if it is not needed
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName, String flagValue) {
@@ -267,7 +267,7 @@ public class SpotiflowBuilder {
     /**
      * Generic means of adding a spotiflow parameter
      *
-     * @param flagName the name of the flag, eg. "save_every"	 * @param flagName the name of the flag, eg. "save_every"
+     * @param flagName the name of the flag, e.g. "save_every"	 * @param flagName the name of the flag, e.g. "save_every"
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName) {
