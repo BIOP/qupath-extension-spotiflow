@@ -16,12 +16,18 @@
 
 package qupath.ext.biop.spotiflow;
 
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.GsonTools;
 import qupath.lib.scripting.QP;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,6 +66,8 @@ public class SpotiflowBuilder {
     private double minDistance = -1;
     private boolean classChannelName = false;
     private String pathClass = null;
+    private transient boolean saveBuilder;
+    private transient String builderName;
 
     /**
      * Build a spotiflow model
@@ -249,6 +257,19 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Save this builder as a JSON file in order to be able to reuse it in place
+     *
+     * @param name // A name to append to the JSON file. Keep it meaningful for your needs
+     * @return this builder
+     */
+    public SpotiflowBuilder saveBuilder(String name) {
+        this.saveBuilder = true;
+        this.builderName = name;
+        return this;
+    }
+
+
     //  SPOTIFLOW OPTIONS
     // ------------------
     /**
@@ -271,8 +292,7 @@ public class SpotiflowBuilder {
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName) {
-        addParameter(flagName, null);
-        return this;
+        return addParameter(flagName, null);
     }
 
 
@@ -317,6 +337,26 @@ public class SpotiflowBuilder {
         spotiflow.doSubpixel = this.doSubpixel;
         spotiflow.pathClass = this.pathClass;
         spotiflow.classChannelName = this.classChannelName;
+
+        // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
+        if (this.saveBuilder) {
+            Gson gson = GsonTools.getInstance(true);
+
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH'h'mm");
+            LocalDateTime now = LocalDateTime.now();
+            File savePath = new File(QP.PROJECT_BASE_DIR, this.builderName + "_" + dtf.format(now) + ".json");
+
+            try {
+                FileWriter fw = new FileWriter(savePath);
+                gson.toJson(this, SpotiflowBuilder.class, fw);
+                fw.flush();
+                fw.close();
+                logger.info("Spotiflow Builder serialized and saved to {}", savePath);
+
+            } catch (IOException e) {
+                logger.error("Could not save builder to JSON file {}", savePath.getAbsolutePath(), e);
+            }
+        }
 
         return spotiflow;
     }
