@@ -68,6 +68,7 @@ public class SpotiflowBuilder {
     private String pathClass = null;
     private transient boolean saveBuilder;
     private transient String builderName;
+    private int nThreads = 12; // default from qupath ome-zarr writer
 
     /**
      * Build a spotiflow model
@@ -248,6 +249,19 @@ public class SpotiflowBuilder {
     }
 
     /**
+     * Specify the number of threads to use for processing.
+     * If you encounter problems, setting this to 1 may help to resolve them by preventing
+     * multithreading.
+     *
+     * @param nThreads the number of threads to use
+     * @return this builder
+     */
+    public SpotiflowBuilder nThreads(int nThreads) {
+        this.nThreads = nThreads;
+        return this;
+    }
+
+    /**
      * Allows to go subpixel resolution
      *
      * @return this builder
@@ -312,6 +326,9 @@ public class SpotiflowBuilder {
             this.tempDirectory = new File(quPathProjectDir, "spotiflow-temp");
         }
         spotiflow.tempDirectory = this.tempDirectory;
+
+        // Give it the number of threads to use
+        spotiflow.nThreads = this.nThreads;
 
         spotiflow.modelDir = this.modelDir;
         spotiflow.pretrainedModelName = this.pretrainedModelName;

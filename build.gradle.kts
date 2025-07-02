@@ -38,9 +38,9 @@ if (versionOverride is String) {
 }
 dependencies {
     implementation(project(":qupath-extension-bioformats"))
+    implementation(project(":qupath-extension-script-editor"))
     implementation(libs.qupath.fxtras)
     implementation("commons-io:commons-io:2.15.0")
-    implementation(libs.bundles.logging)
 
     implementation("ome:formats-gpl:${bioformatsVersion}") {
         exclude(group= "xalan", module= "xalan")
@@ -53,9 +53,6 @@ dependencies {
         exclude(group= "com.google.code.findbugs", module= "jsr305")
         exclude(group= "com.google.code.findbugs", module= "annotations")
     }
-
-    // For testing
-    testImplementation(libs.junit)
 }
 
 tasks.withType<ProcessResources> {
