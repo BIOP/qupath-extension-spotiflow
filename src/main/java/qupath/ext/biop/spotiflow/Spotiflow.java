@@ -87,7 +87,7 @@ public class Spotiflow {
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
     protected boolean savePredictionImages;
-    protected boolean useGPU;
+    protected boolean disableGPU;
     protected boolean process3d;
     protected double probabilityThreshold;
     protected double minDistance;
@@ -499,10 +499,10 @@ public class Spotiflow {
         }
 
         spotiflowArguments.add("--device");
-        if(this.useGPU){
-            spotiflowArguments.add("cuda");
-        } else {
+        if(this.disableGPU){
             spotiflowArguments.add("cpu");
+        } else {
+            spotiflowArguments.add("auto");
         }
 
         this.parameters.forEach((parameter, value) -> {

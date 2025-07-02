@@ -59,7 +59,7 @@ public class SpotiflowBuilder {
     private File trainingOutputDir = null;
     private Map<String, Integer> channels = new HashMap<>();
     private boolean savePredictionImages = true;
-    private boolean useGPU = true;
+    private boolean disableGPU = false;
     private boolean process3d = false;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
@@ -206,13 +206,13 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Enable CPU / GPU usage
+     * Forces using CPU instead of GPU
      *
-     * @param useGPU  override useGPU
+     * @param disableGPU  override disableGPU
      * @return this builder
      */
-    public SpotiflowBuilder useGPU(boolean useGPU) {
-        this.useGPU = useGPU;
+    public SpotiflowBuilder disableGPU(boolean disableGPU) {
+        this.disableGPU = disableGPU;
         return this;
     }
 
@@ -346,7 +346,7 @@ public class SpotiflowBuilder {
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
         spotiflow.savePredictionImages = this.savePredictionImages;
-        spotiflow.useGPU = this.useGPU;
+        spotiflow.disableGPU = this.disableGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
         spotiflow.channels = this.channels;
