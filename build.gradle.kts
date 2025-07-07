@@ -23,6 +23,7 @@ dependencies {
         exclude(group= "cisd", module= "jhdf5")
         exclude(group= "edu.ucar", module= "cdm-core")
     }
+    implementation(libs.qupath.gui.fx)
     implementation(libs.qupath.ext.script.editor)
     implementation(libs.qupath.fxtras)
     implementation("commons-io:commons-io:2.15.0")
