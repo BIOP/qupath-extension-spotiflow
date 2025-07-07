@@ -1,106 +1,36 @@
 plugins {
-    id("java-library")
     id("maven-publish")
-    id("qupath.extension-conventions")
-    id("qupath.javafx-conventions")
+    // QuPath Gradle extension convention plugin
+    id("qupath-conventions")
 }
 
 repositories {
-    // Use this only for local development!
-    mavenCentral()
-    maven{
-        url = uri("https://maven.scijava.org/content/repositories/releases")
-    }
     maven{
         url = uri("https://maven.scijava.org/content/repositories/ome-releases")
     }
 }
 
-group = "ch.epfl.biop"
-version = "0.1.0-rc3-SNAPSHOT"
-description = "A QuPath extension to run Spotiflow"
-
-var archiveBaseName = "qupath-extension-spotiflow"
-var moduleName ="qupath.extension.spotiflow"
-
-base {
-    archivesName = archiveBaseName
-    description = description
+qupathExtension {
+    name = "qupath-extension-spotiflow"
+    group = "ch.epfl.biop"
+    version = "0.1.0-rc3-SNAPSHOT"
+    description = "QuPath extension to use Spotiflow"
+    automaticModule = "qupath.ext.biop.spotiflow"
 }
 
-val qupathVersion = rootProject.version.toString()
-
-var bioformatsVersion = libs.versions.bioformats.get()
-val versionOverride = project.properties["bioformats-version"]
-if (versionOverride is String) {
-    println("Using specified Bio-Formats version $versionOverride")
-    bioformatsVersion = versionOverride
-}
 dependencies {
-    implementation(project(":qupath-extension-bioformats"))
-    implementation(project(":qupath-extension-script-editor"))
+    implementation(libs.qupath.ext.bioformats){
+        exclude(group= "cisd", module= "jhdf5")
+        exclude(group= "edu.ucar", module= "cdm-core")
+    }
+    implementation(libs.qupath.ext.script.editor)
     implementation(libs.qupath.fxtras)
     implementation("commons-io:commons-io:2.15.0")
-
-    implementation("ome:formats-gpl:${bioformatsVersion}") {
-        exclude(group= "xalan", module= "xalan")
-        exclude(group= "io.minio", module= "minio")
-        exclude(group= "cisd", module= "jhdf5")
-        exclude(group= "commons-codec", module= "commons-codec")
-        exclude(group= "commons-logging", module= "commons-logging")
-        exclude(group= "edu.ucar", module= "cdm")
-        exclude(group= "edu.ucar", module= "cdm-core")
-        exclude(group= "com.google.code.findbugs", module= "jsr305")
-        exclude(group= "com.google.code.findbugs", module= "annotations")
-    }
-}
-
-tasks.withType<ProcessResources> {
-    from ("${projectDir}/LICENSE") {
-        into("META-INF/licenses/")
-    }
-}
-
-tasks.register<Sync>("copyResources") {
-    description = "Copy dependencies into the build directory for use elsewhere"
-    group = "QuPath"
-    from(configurations.default)
-    into("build/libs")
 }
 
 /*
- * Ensure Java 21 compatibility
+ * Set HTML language and destination folder
  */
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-
-/*
- * Adding manifest information
- */
-tasks {
-    withType<Jar> {
-        manifest {
-            attributes["Implementation-Title"] = project.name
-            attributes["Automatic-Module-Name"] = "${project.group}.$moduleName"
-        }
-    }
-}
-
-/*
- * Create javadocs for all modules/packages in one place.
- * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
- */
-val strictJavadoc = findProperty("strictJavadoc")
-if (strictJavadoc == false) {
-    tasks.withType<Javadoc> {
-        (options as StandardJavadocDocletOptions).addStringOption("Xdoclint:none", "-quiet")
-    }
-}
-
 tasks.withType<Javadoc> {
     (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
     setDestinationDir(File(project.rootDir,"docs"))
