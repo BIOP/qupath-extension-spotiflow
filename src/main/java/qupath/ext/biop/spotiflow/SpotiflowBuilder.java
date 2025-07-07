@@ -302,7 +302,7 @@ public class SpotiflowBuilder {
     /**
      * Generic means of adding a spotiflow parameter
      *
-     * @param flagName the name of the flag, e.g. "save_every"	 * @param flagName the name of the flag, e.g. "save_every"
+     * @param flagName the name of the flag, e.g. "save_every"
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName) {

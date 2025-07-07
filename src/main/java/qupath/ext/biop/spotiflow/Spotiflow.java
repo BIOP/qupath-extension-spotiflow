@@ -23,15 +23,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
-import qupath.lib.common.ColorTools;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TransformedServerBuilder;
-import qupath.lib.images.writers.ome.OMEPyramidWriter;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -42,7 +38,6 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -56,8 +51,6 @@ import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
-
-import static qupath.lib.scripting.QP.setChannels;
 
 /**
  * Spot detection based on the following method:
