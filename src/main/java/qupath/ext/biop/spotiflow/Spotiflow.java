@@ -25,8 +25,10 @@ import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.writers.ome.OMEPyramidWriter;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -86,12 +88,12 @@ public class Spotiflow {
     protected String doSubpixel;
     protected String pathClass;
     protected boolean classChannelName;
+    protected int nThreads;
 
-    private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
-    private final String FILE_EXTENSION = ".ome.tif";
+    private final String FILE_EXTENSION = ".ome.zarr";
     private final String ALL_SLICES = "allZ";
     private File imageDirectory = null;
 
@@ -137,7 +139,7 @@ public class Spotiflow {
                 try {
                     pool.awaitTermination(2, TimeUnit.DAYS);
                 } catch (InterruptedException e) {
-                    logger.warn("Process was interrupted! " + e.getLocalizedMessage(), e);
+                    logger.warn("Process was interrupted! {}", e.getLocalizedMessage(), e);
                 }
             }
         } else {
@@ -252,36 +254,43 @@ public class Spotiflow {
             // save images in temp folder
             for (PathObject parent : missingParents) {
                 logger.info("Saving image(s) into the temporary folder");
-                try{
-                    RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
-                    String name = channel + NAME_SEPARATOR +
-                            region.getX() + NAME_SEPARATOR +
-                            region.getY() + NAME_SEPARATOR +
-                            region.getWidth() + NAME_SEPARATOR +
-                            region.getHeight() + NAME_SEPARATOR;
+                RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
-                    name += process3d ? ALL_SLICES : parent.getROI().getZ();
+                String name = channel + NAME_SEPARATOR +
+                        region.getX() + NAME_SEPARATOR +
+                        region.getY() + NAME_SEPARATOR +
+                        region.getWidth() + NAME_SEPARATOR +
+                        region.getHeight() + NAME_SEPARATOR;
 
-                    correspondanceMap.put(name, parent);
-                    String outputPath = new File(this.imageDirectory, name + FILE_EXTENSION).getAbsolutePath();
+                int currentSlice = parent.getROI().getZ();
+                name += process3d ? ALL_SLICES : currentSlice;
 
-                    // write the ome.tiff
-                    OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
-                    builder.parallelize()
-                           .tileSize(512)
-                           .region(region)
-                           .scaledDownsampling(1, 2)
-                           .channels(channels.get(channel));
+                correspondanceMap.put(name, parent);
+                String outputPath = new File(this.imageDirectory, name + FILE_EXTENSION).getAbsolutePath();
 
-                    // process all slices
-                    if(process3d)
-                        builder.allZSlices();
+                // create a new ImageServer containing only the channel of interest
+                ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
+                        .extractChannels(channels.get(channel))
+                        .build();
+                ImageData<BufferedImage> selectedData = new ImageData<>(selectedChannels);
 
-                    // save ome-tiff
-                    builder.build().writeSeries(outputPath);
+                // write the ome.zarr
+                OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
+                builder.parallelize(nThreads)
+                       .tileSize(512)
+                       .region(region)
+                       .downsamples(1, 2);
+
+                // process all slices
+                if(!process3d)
+                    builder.zSlices(currentSlice, currentSlice + 1);
+
+                // save ome-tiff
+                try(OMEZarrWriter omeZarrWriter =  builder.build(outputPath) ){
+                    omeZarrWriter.writeImage();
                 } catch (Exception e) {
-                    logger.error("Cannot convert ROI to ImagePlus");
+                    logger.error("Error during writing OME-Zarr file", e);
                 }
             }
 
@@ -293,7 +302,6 @@ public class Spotiflow {
                 logger.error("Failed to Run Spotiflow", e);
                 return;
             }
-
 
             // create new channel PathClass if it doesn't already exist
             String detectionClass = this.pathClass;
