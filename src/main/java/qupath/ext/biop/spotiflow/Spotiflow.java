@@ -321,7 +321,7 @@ public class Spotiflow {
 
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
-                File detectionFile = new File(this.imageDirectory, name + ".ome.csv");
+                File detectionFile = new File(this.imageDirectory, name + ".csv");
                 PathObject parent = correspondanceMap.get(name);
 
                 if (detectionFile.exists()) {
@@ -469,6 +469,9 @@ public class Spotiflow {
         spotiflowArguments.add("--out-dir");
         spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
         spotiflowArguments.add("--verbose");
+        spotiflowArguments.add("--zarr-component");
+        spotiflowArguments.add("s0");
+
 
         if(this.pretrainedModelName != null) {
             spotiflowArguments.add("--pretrained-model");
