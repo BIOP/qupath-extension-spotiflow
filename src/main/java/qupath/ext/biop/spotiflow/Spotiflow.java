@@ -83,7 +83,7 @@ public class Spotiflow {
     protected boolean disableGPU;
     protected boolean process3d;
     protected double probabilityThreshold;
-    protected double minDistance;
+    protected int minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
     protected String doSubpixel;
     protected String pathClass;

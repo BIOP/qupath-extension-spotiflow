@@ -63,7 +63,7 @@ public class SpotiflowBuilder {
     private boolean process3d = false;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
-    private double minDistance = -1;
+    private int minDistance = -1;
     private boolean classChannelName = false;
     private String pathClass = null;
     private transient boolean saveBuilder;
@@ -129,7 +129,12 @@ public class SpotiflowBuilder {
      * @return this builder
      */
     public SpotiflowBuilder setMinDistance(double minDistance) {
-        this.minDistance = minDistance;
+        int minDistanceInt = (int)minDistance;
+        if(Math.abs(minDistanceInt - minDistance) > 0){
+            logger.warn("The minimum distance you set is not an integer number ({}) ; " +
+                    "will be rounded to {}", minDistance, minDistanceInt);
+        }
+        this.minDistance = minDistanceInt;
         return this;
     }
 
