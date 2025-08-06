@@ -230,29 +230,30 @@ public class Spotiflow {
         parents.forEach(PathObject::clearChildObjects);
 
         // loop over the different channels to process
+        Map<String, Map<String, PathObject>> channelCorrespondanceMap = new HashMap<>();
         for(String channel: channels.keySet()) {
             logger.info("Working on channel {}", channel);
-            Map<String, PathObject> correspondanceMap = new HashMap<>();
             Collection<PathObject> missingParents = new ArrayList<>();
-
-            if(cleanTempDir) {
+            Map<String, PathObject> correspondanceMap = new HashMap<>();
+            
+            if (cleanTempDir) {
                 missingParents = (Collection<PathObject>) parents;
-            }else {
+            } else {
                 for (PathObject parent : parents) {
                     ROI region = parent.getROI();
                     String name = channel + NAME_SEPARATOR +
-                            (int)region.getBoundsX() + NAME_SEPARATOR +
-                            (int)region.getBoundsY() + NAME_SEPARATOR +
-                            (int)region.getBoundsWidth() + NAME_SEPARATOR +
-                            (int)region.getBoundsHeight() + NAME_SEPARATOR;
+                            (int) region.getBoundsX() + NAME_SEPARATOR +
+                            (int) region.getBoundsY() + NAME_SEPARATOR +
+                            (int) region.getBoundsWidth() + NAME_SEPARATOR +
+                            (int) region.getBoundsHeight() + NAME_SEPARATOR;
 
                     name += process3d ? ALL_SLICES : parent.getROI().getZ();
 
                     File optFile = new File(this.imageDirectory, name + FILE_EXTENSION);
-                    if(optFile.exists()){
+                    if (optFile.exists()) {
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
                         correspondanceMap.put(name, parent);
-                    }else{
+                    } else {
                         logger.warn("The parent shape '{}' is missing. Will be saved anyway", name);
                         missingParents.add(parent);
                     }
@@ -286,31 +287,36 @@ public class Spotiflow {
                 // write the ome.zarr
                 OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
                 builder.parallelize(nThreads)
-                       .tileSize(512)
-                       .region(region)
-                       .downsamples(1, 2);
+                        .tileSize(512)
+                        .region(region)
+                        .downsamples(1, 2);
 
                 // process all slices
-                if(!process3d)
+                if (!process3d)
                     builder.zSlices(currentSlice, currentSlice + 1);
 
                 // save ome-tiff
-                try(OMEZarrWriter omeZarrWriter =  builder.build(outputPath) ){
+                try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
                     omeZarrWriter.writeImage();
                 } catch (Exception e) {
                     logger.error("Error during writing OME-Zarr file", e);
                 }
             }
-
-            // run spotiflow
-            try {
-                logger.info("Running Spotiflow");
-                runSpotiflow();
-            } catch (IOException | InterruptedException e) {
-                logger.error("Failed to Run Spotiflow", e);
-                return;
-            }
-
+            channelCorrespondanceMap.put(channel, correspondanceMap);
+        }
+        
+        // run spotiflow
+        try {
+            logger.info("Running Spotiflow");
+            runSpotiflow();
+        } catch (IOException | InterruptedException e) {
+            logger.error("Failed to Run Spotiflow", e);
+            return;
+        }
+            
+        for(String channel: channels.keySet()) {
+            Map<String, PathObject> correspondanceMap = channelCorrespondanceMap.get(channel);
+            
             // create new channel PathClass if it doesn't already exist
             String detectionClass = this.pathClass;
             if(this.classChannelName){
