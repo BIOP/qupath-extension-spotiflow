@@ -111,7 +111,12 @@ public class Spotiflow {
                                      double y, double z, int c, int t, double intensity, double probability) {
         ImagePlane imagePlane = ImagePlane.getPlaneWithChannel(c, (int) z, t);
         ROI pointROI = ROIs.createPointsROI(x, y, imagePlane);
-        PathObject pointObject = PathObjects.createDetectionObject(pointROI, PathClass.fromString(channelClass), null);
+        PathObject pointObject = PathObjects.createDetectionObject(pointROI);
+
+        if(channelClass == null || channelClass.equals("null"))
+            pointObject.resetPathClass();
+        else pointObject.setPathClass(PathClass.fromString(channelClass));
+
         ObjectMeasurements.addShapeMeasurements(pointObject, cal);
         pointObject.getMeasurementList().put("Spotiflow intensity", intensity);
         pointObject.getMeasurementList().put("Spotiflow probability", probability);
