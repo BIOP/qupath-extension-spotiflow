@@ -336,12 +336,13 @@ public class Spotiflow {
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
                 File detectionFile = new File(this.imageDirectory, name + ".csv");
-                PathObject parent = correspondanceMap.get(name);
 
                 if (detectionFile.exists()) {
                     String[] regionAttributes = name.split(NAME_SEPARATOR);
                     double x0 = Double.parseDouble(regionAttributes[1]);
                     double y0 = Double.parseDouble(regionAttributes[2]);
+                    PathObject parent = correspondanceMap.get(name);
+                    ROI parentROI = parent.getROI();
 
                     try {
                         List<String> detectionList = Files.readAllLines(detectionFile.toPath());
@@ -373,17 +374,19 @@ public class Spotiflow {
                             double intensity = Double.parseDouble(attributes[pos+2]);
                             double probability = Double.parseDouble(attributes[pos+3]);
 
-                            // populate the list of child according to the current Z
-                            List<PathObject> child;
-                            PathObject parentZAnnotation = annotationZMap.get(((int) zf));
-                            if(annotationChildMap.containsKey(parentZAnnotation)){
-                                child = annotationChildMap.get(parentZAnnotation);
-                            }else{
-                                child = new ArrayList<>();
+                            if(parentROI.contains(xf, yf)) {
+                                // populate the list of child according to the current Z
+                                List<PathObject> child;
+                                PathObject parentZAnnotation = annotationZMap.get(((int) zf));
+                                if (annotationChildMap.containsKey(parentZAnnotation)) {
+                                    child = annotationChildMap.get(parentZAnnotation);
+                                } else {
+                                    child = new ArrayList<>();
+                                }
+                                child.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
+                                        parentPlane.getT(), intensity, probability));
+                                annotationChildMap.put(parentZAnnotation, child);
                             }
-                            child.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
-                                    parentPlane.getT(), intensity, probability));
-                            annotationChildMap.put(parentZAnnotation, child);
                         }
 
                     } catch (IOException e) {
