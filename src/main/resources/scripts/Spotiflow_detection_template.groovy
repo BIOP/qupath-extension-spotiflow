@@ -31,9 +31,9 @@ def spotiflow = Spotiflow.builder()
 //        .process3d(true)                                     // OPTIONAL : process the entire zstack ; default false
 //        .doSubpixel(true)                                    // OPTIONAL : true to get subpixel resolution ; false to not. Default: let spotiflow choose
 //        .setClass("ClassName")                               // OPTIONAL : set the same class for all detections. Default: not assign any classes
-//        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
+        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
 //        .nThreads(12)                                        // OPTIONAL : How much you want to paralellize processing. Default 12
-        .channels("SPOT")
+        .channels("SPOT", "SPOT2")
         .cleanTempDir(true)
         .build()
 

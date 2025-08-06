@@ -221,6 +221,9 @@ public class Spotiflow {
         if(!this.imageDirectory.exists())
             this.imageDirectory.mkdirs();
 
+        // clear previous detections
+        parents.forEach(PathObject::clearChildObjects);
+
         // loop over the different channels to process
         for(String channel: channels.keySet()) {
             logger.info("Working on channel {}", channel);
@@ -381,7 +384,6 @@ public class Spotiflow {
             // Assign the objects to the parent object
             for(PathObject parentZAnnotation: annotationChildMap.keySet()){
                 parentZAnnotation.setLocked(true);
-                parentZAnnotation.clearChildObjects();
                 parentZAnnotation.addChildObjects(annotationChildMap.get(parentZAnnotation));
             }
 
