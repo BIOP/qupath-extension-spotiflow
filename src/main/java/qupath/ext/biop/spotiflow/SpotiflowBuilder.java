@@ -60,6 +60,7 @@ public class SpotiflowBuilder {
     private Map<String, Integer> channels = new HashMap<>();
     private boolean cleanTempDir = true;
     private boolean disableGPU = false;
+    private boolean isOmeZarr = false;
     private boolean process3d = false;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
@@ -301,6 +302,18 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * True to save images in the temp folder as OME-Zarr files. Otherwise, saved as OME-TIFF
+     * WARNING : OME-Zarr option is only available from spotiflow >= 0.5.8
+     *
+     * @param isOmeZarr
+     * @return this builder
+     */
+    public SpotiflowBuilder saveTempImagesAsOmeZarr(boolean isOmeZarr) {
+        this.isOmeZarr = isOmeZarr;
+        return this;
+    }
+
 
     //  SPOTIFLOW OPTIONS
     // ------------------
@@ -371,6 +384,7 @@ public class SpotiflowBuilder {
         spotiflow.process3d = this.process3d;
         spotiflow.doSubpixel = this.doSubpixel;
         spotiflow.pathClass = this.pathClass;
+        spotiflow.isOmeZarr = this.isOmeZarr;
         spotiflow.classChannelName = this.classChannelName;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete

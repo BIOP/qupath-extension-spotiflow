@@ -23,6 +23,7 @@ dependencies {
         exclude(group= "cisd", module= "jhdf5")
         exclude(group= "edu.ucar", module= "cdm-core")
     }
+    implementation("ome:formats-api:${libs.versions.bioformats.get()}")
     implementation(libs.qupath.gui.fx)
     implementation(libs.qupath.ext.script.editor)
     implementation(libs.qupath.fxtras)

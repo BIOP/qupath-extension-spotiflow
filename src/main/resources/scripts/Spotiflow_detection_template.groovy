@@ -33,6 +33,8 @@ def spotiflow = Spotiflow.builder()
 //        .setClass("ClassName")                               // OPTIONAL : set the same class for all detections. Default: not assign any classes
         .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
 //        .nThreads(12)                                        // OPTIONAL : How much you want to paralellize processing. Default 12
+//        .saveBuilder("MyFancyName")                          // OPTIONAL : To save builder parameters as JSON file
+//        .saveTempImagesAsOmeZarr(true)                       // OPTIONAL : ONLY AVAILABLE FOR SPOTIFLOW >= 0.5.8. Save temp images as ome-zarr. Default is 'false' and images are saved as ome.tiff
         .channels("SPOT", "SPOT2")
         .cleanTempDir(true)
         .build()
