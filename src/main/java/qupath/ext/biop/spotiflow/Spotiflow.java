@@ -79,7 +79,7 @@ public class Spotiflow {
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
-    protected boolean savePredictionImages;
+    protected boolean cleanTempDir;
     protected boolean disableGPU;
     protected boolean process3d;
     protected double probabilityThreshold;
@@ -212,7 +212,7 @@ public class Spotiflow {
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
         int nZ = imageData.getServer().nZSlices();
 
-        if(savePredictionImages) {
+        if(cleanTempDir) {
             cleanDirectory(tempDirectory);
         }
 
@@ -227,7 +227,7 @@ public class Spotiflow {
             Map<String, PathObject> correspondanceMap = new HashMap<>();
             Collection<PathObject> missingParents = new ArrayList<>();
 
-            if(savePredictionImages) {
+            if(cleanTempDir) {
                 missingParents = (Collection<PathObject>) parents;
             }else {
                 for (PathObject parent : parents) {

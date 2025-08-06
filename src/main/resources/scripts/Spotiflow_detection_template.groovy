@@ -34,7 +34,7 @@ def spotiflow = Spotiflow.builder()
 //        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
 //        .nThreads(12)                                        // OPTIONAL : How much you want to paralellize processing. Default 12
         .channels("SPOT")
-        .savePredictionImages(false)
+        .cleanTempDir(true)
         .build()
 
 // Run detection for the selected objects

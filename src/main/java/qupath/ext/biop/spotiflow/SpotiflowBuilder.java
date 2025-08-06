@@ -58,7 +58,7 @@ public class SpotiflowBuilder {
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
     private Map<String, Integer> channels = new HashMap<>();
-    private boolean savePredictionImages = true;
+    private boolean cleanTempDir = true;
     private boolean disableGPU = false;
     private boolean process3d = false;
     private String doSubpixel = "None";
@@ -94,9 +94,22 @@ public class SpotiflowBuilder {
      *
      * @param savePredictionImages  overwrite variable
      * @return this builder
+     * @deprecated use {@link SpotiflowBuilder#cleanTempDir(boolean)} instead
      */
+    @Deprecated
     public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
-        this.savePredictionImages = savePredictionImages;
+        this.cleanTempDir = savePredictionImages;
+        return this;
+    }
+
+    /**
+     * Set input folder to predict spots
+     *
+     * @param cleanTempDir  overwrite variable
+     * @return this builder
+     */
+    public SpotiflowBuilder cleanTempDir(boolean cleanTempDir) {
+        this.cleanTempDir = cleanTempDir;
         return this;
     }
 
@@ -350,7 +363,7 @@ public class SpotiflowBuilder {
         spotiflow.trainingOutputDir = this.trainingOutputDir;
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
-        spotiflow.savePredictionImages = this.savePredictionImages;
+        spotiflow.cleanTempDir = this.cleanTempDir;
         spotiflow.disableGPU = this.disableGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
