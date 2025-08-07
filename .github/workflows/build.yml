@@ -11,4 +11,8 @@ permissions:
 
 jobs:
   build:
-    uses: qupath/actions/.github/workflows/gradle.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+      - uses: qupath/actions/.github/workflows/gradle.yml@main
