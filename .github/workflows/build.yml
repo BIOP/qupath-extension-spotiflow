@@ -6,9 +6,18 @@ on:
       - "main"
   workflow_dispatch:
 
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+
 permissions:
   contents: read
 
 jobs:
   build:
+    needs: prepare
     uses: qupath/actions/.github/workflows/gradle.yml@main
