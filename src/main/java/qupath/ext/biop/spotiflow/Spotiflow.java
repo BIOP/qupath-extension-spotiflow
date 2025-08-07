@@ -41,9 +41,11 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -52,6 +54,7 @@ import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Spot detection based on the following method:
@@ -368,7 +371,7 @@ public class Spotiflow {
 
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
-                File detectionFile = new File(this.imageDirectory, name + ".csv");
+                File detectionFile = findResultFile(name);
 
                 if (detectionFile.exists()) {
                     String[] regionAttributes = name.split(NAME_SEPARATOR);
@@ -439,6 +442,17 @@ public class Spotiflow {
         }
     }
 
+    private File findResultFile(String name){
+       List<File> candidateResultsFile = Arrays.stream(Objects.requireNonNull(this.imageDirectory.listFiles()))
+                .filter(e -> e.getName().contains(name) && e.getName().endsWith(".csv"))
+                .collect(Collectors.toList());
+       if(candidateResultsFile.isEmpty()) {
+           return new File("");
+       }else{
+           return candidateResultsFile.getFirst();
+       }
+    }
+
 
     private void cleanDirectory(File directory) {
         // Delete the existing directory
@@ -480,7 +494,6 @@ public class Spotiflow {
         // Set python executable in the environment
         String pythonPath = spotiflowSetup.getSpotiflowPythonPath();
 
-        //TODO try to mimic cellpose here and remove those line + function argument when possible
         switch (Platform.getCurrent()) {
             case UNIX:
             case OSX:
