@@ -41,7 +41,6 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -51,6 +50,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -94,6 +94,8 @@ public class Spotiflow {
     protected boolean classChannelName;
     protected int nThreads;
     protected boolean isOmeZarr;
+    protected boolean clearAllChildObjects;
+    protected boolean clearChildObjectsBelongingToCurrentChannels;
 
     private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
@@ -182,13 +184,8 @@ public class Spotiflow {
             VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner(command);
 
             // This is the list of commands after the 'python' call
-            // We want to ignore all warnings to make sure the log is clean (-W ignore)
-            // We want to be able to call the module by name (-m)
-            // We want to make sure UTF8 mode is by default (-X utf8)
-            List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+            List<String> spotiflowArguments = new ArrayList<>();
 
-            //TODO set it as for cellpose when available
-            //spotiflowArguments.add(command);
             spotiflowArguments.add("--help");
 
             veRunner.setArguments(spotiflowArguments);
@@ -239,8 +236,26 @@ public class Spotiflow {
             this.imageDirectory.mkdirs();
         }
 
+        // clear all detections that belong to the current selected channel(s)
+        if(this.clearChildObjectsBelongingToCurrentChannels){
+            Set<String> channelNames = channels.keySet();
+            logger.info("Clearing all child objects with the following class(es) : {}", channelNames);
+            List<PathObject> childToDelete = new ArrayList<>();
+            for (PathObject parent : parents) {
+                for (PathObject childObject : parent.getChildObjects()) {
+                    if(channelNames.contains(childObject.getPathClass().getName())){
+                        childToDelete.add(childObject);
+                    }
+                }
+            }
+            imageData.getHierarchy().removeObjects(childToDelete, false);
+        }
+
         // clear previous detections
-        parents.forEach(PathObject::clearChildObjects);
+        if(this.clearAllChildObjects) {
+            logger.info("Clearing all child objects");
+            parents.forEach(PathObject::clearChildObjects);
+        }
 
         // loop over the different channels to process
         Map<String, Map<String, PathObject>> channelCorrespondanceMap = new HashMap<>();
@@ -267,7 +282,7 @@ public class Spotiflow {
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
                         correspondanceMap.put(name, parent);
                     } else {
-                        logger.warn("The parent shape '{}' is missing. Will be saved anyway", name);
+                        logger.info("The parent shape '{}' is missing. Will be saved anyway", name);
                         missingParents.add(parent);
                     }
                 }
@@ -275,8 +290,6 @@ public class Spotiflow {
 
             // save images in temp folder
             for (PathObject parent : missingParents) {
-
-
                 RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
                 String name = channel + NAME_SEPARATOR +
@@ -442,6 +455,12 @@ public class Spotiflow {
         }
     }
 
+    /**
+     * Get, from the output folder, the csv file corresponding to current analysis.
+     *
+     * @param name
+     * @return
+     */
     private File findResultFile(String name){
        List<File> candidateResultsFile = Arrays.stream(Objects.requireNonNull(this.imageDirectory.listFiles()))
                 .filter(e -> e.getName().contains(name) && e.getName().endsWith(".csv"))

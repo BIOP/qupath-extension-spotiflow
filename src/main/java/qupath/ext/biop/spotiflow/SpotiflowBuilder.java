@@ -70,7 +70,8 @@ public class SpotiflowBuilder {
     private transient boolean saveBuilder;
     private transient String builderName;
     private int nThreads = 12; // default from qupath ome-zarr writer
-
+    private boolean clearChildObjectsBelongingToCurrentChannels = false;
+    private boolean clearAllChildObjects = false;
     /**
      * Build a spotiflow model
      */
@@ -314,6 +315,27 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Remove all child objects (i.e. previous points) from the parent shapes
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder clearAllChildObjects() {
+        this.clearAllChildObjects = true;
+        return this;
+    }
+
+    /**
+     * Remove child objects (i.e. previous points) from the parent shapes which belongs to
+     * the current selected channel(s) i.e. which have the same class as the channel name.
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder clearChildObjectsBelongingToCurrentChannels() {
+        this.clearChildObjectsBelongingToCurrentChannels = true;
+        return this;
+    }
+
 
     //  SPOTIFLOW OPTIONS
     // ------------------
@@ -386,6 +408,8 @@ public class SpotiflowBuilder {
         spotiflow.pathClass = this.pathClass;
         spotiflow.isOmeZarr = this.isOmeZarr;
         spotiflow.classChannelName = this.classChannelName;
+        spotiflow.clearAllChildObjects = this.clearAllChildObjects;
+        spotiflow.clearChildObjectsBelongingToCurrentChannels = this.clearChildObjectsBelongingToCurrentChannels;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {
