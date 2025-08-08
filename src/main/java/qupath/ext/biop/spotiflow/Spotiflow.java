@@ -257,6 +257,25 @@ public class Spotiflow {
             parents.forEach(PathObject::clearChildObjects);
         }
 
+        // create new channel PathClass if it doesn't already exist
+        javafx.application.Platform.runLater(()-> {
+            ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
+            if (this.classChannelName) {
+                for (String channel : this.channels.keySet()) {
+                    PathClass channelPathClass = PathClass.fromString(channel);
+                    if (!availablePathClasses.contains(channelPathClass)) {
+                        availablePathClasses.add(channelPathClass);
+                    }
+                }
+            } else {
+                PathClass channelPathClass = PathClass.fromString(this.pathClass);
+                if (!availablePathClasses.contains(channelPathClass)) {
+                    availablePathClasses.add(channelPathClass);
+                }
+            }
+            QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
+        });
+
         // loop over the different channels to process
         Map<String, Map<String, PathObject>> channelCorrespondanceMap = new HashMap<>();
         for(String channel: channels.keySet()) {
@@ -370,13 +389,6 @@ public class Spotiflow {
             String detectionClass = this.pathClass;
             if(this.classChannelName){
                 detectionClass = channel;
-            }
-
-            ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
-            PathClass channelPathClass = PathClass.fromString(detectionClass);
-            if (!availablePathClasses.contains(channelPathClass)) {
-                availablePathClasses.add(channelPathClass);
-                QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
             }
 
             Map<Integer, PathObject> annotationZMap = new HashMap<>();
