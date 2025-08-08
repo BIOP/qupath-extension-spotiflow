@@ -569,6 +569,9 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
+
+        // Add a waitFor() here to fix MAC Mx chip killing thread issue (#15)
+        veRunner.getProcess().waitFor();
     }
 
     /**

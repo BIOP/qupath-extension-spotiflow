@@ -237,13 +237,6 @@ public class VirtualEnvironmentRunner {
                 this.process.waitFor();
             } catch (InterruptedException e) {
                 logger.error(e.getMessage());
-                logger.warn("Process interrupted ; trying again...");
-                try {
-                    this.process.waitFor();
-                } catch (InterruptedException e2) {
-                    logger.error(e2.getMessage());
-                    logger.error("Process interrupted by another thread ; stop here");
-                }
             }
         }
     }
