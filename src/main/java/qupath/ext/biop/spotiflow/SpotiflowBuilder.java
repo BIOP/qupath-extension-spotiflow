@@ -58,7 +58,7 @@ public class SpotiflowBuilder {
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
     private Map<String, Integer> channels = new HashMap<>();
-    private boolean cleanTempDir = true;
+    private boolean cleanTempDir = false;
     private boolean disableGPU = false;
     private boolean isOmeZarr = false;
     private boolean process3d = false;
@@ -96,7 +96,7 @@ public class SpotiflowBuilder {
      *
      * @param savePredictionImages  overwrite variable
      * @return this builder
-     * @deprecated use {@link SpotiflowBuilder#cleanTempDir(boolean)} instead
+     * @deprecated use {@link SpotiflowBuilder#cleanTempDir()} instead
      */
     @Deprecated
     public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
@@ -105,13 +105,12 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Set input folder to predict spots
+     * clear all files in the tem
      *
-     * @param cleanTempDir  overwrite variable
      * @return this builder
      */
-    public SpotiflowBuilder cleanTempDir(boolean cleanTempDir) {
-        this.cleanTempDir = cleanTempDir;
+    public SpotiflowBuilder cleanTempDir() {
+        this.cleanTempDir = true;
         return this;
     }
 
@@ -228,11 +227,10 @@ public class SpotiflowBuilder {
     /**
      * Forces using CPU instead of GPU
      *
-     * @param disableGPU  override disableGPU
      * @return this builder
      */
-    public SpotiflowBuilder disableGPU(boolean disableGPU) {
-        this.disableGPU = disableGPU;
+    public SpotiflowBuilder disableGPU() {
+        this.disableGPU = true;
         return this;
     }
 
@@ -241,9 +239,22 @@ public class SpotiflowBuilder {
      *
      * @param process3d  override process3d
      * @return this builder
+     * @deprecated use {@link SpotiflowBuilder#process3d()} instead
      */
+    @Deprecated
     public SpotiflowBuilder process3d(boolean process3d) {
         this.process3d = process3d;
+        return this;
+    }
+
+    /**
+     * Allows to process all slices of 3D stack.
+     * Has to be used together with a 3D-model (custom or pre-trained)
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder process3d() {
+        this.process3d = true;
         return this;
     }
 
@@ -294,7 +305,7 @@ public class SpotiflowBuilder {
     /**
      * Save this builder as a JSON file in order to be able to reuse it in place
      *
-     * @param name // A name to append to the JSON file. Keep it meaningful for your needs
+     * @param name A name to append to the JSON file. Keep it meaningful for your needs
      * @return this builder
      */
     public SpotiflowBuilder saveBuilder(String name) {
@@ -307,11 +318,10 @@ public class SpotiflowBuilder {
      * True to save images in the temp folder as OME-Zarr files. Otherwise, saved as OME-TIFF
      * WARNING : OME-Zarr option is only available from spotiflow >= 0.5.8
      *
-     * @param isOmeZarr
      * @return this builder
      */
-    public SpotiflowBuilder saveTempImagesAsOmeZarr(boolean isOmeZarr) {
-        this.isOmeZarr = isOmeZarr;
+    public SpotiflowBuilder saveTempImagesAsOmeZarr() {
+        this.isOmeZarr = true;
         return this;
     }
 
@@ -328,6 +338,8 @@ public class SpotiflowBuilder {
     /**
      * Remove child objects (i.e. previous points) from the parent shapes which belongs to
      * the current selected channel(s) i.e. which have the same class as the channel name.
+     * Should be used together with {@link SpotiflowBuilder#setClassChannelName()} to have the
+     * desired effect.
      *
      * @return this builder
      */
