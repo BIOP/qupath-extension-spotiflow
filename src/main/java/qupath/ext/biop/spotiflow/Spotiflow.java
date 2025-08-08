@@ -25,8 +25,11 @@ import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter;
+import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -41,14 +44,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Spot detection based on the following method:
@@ -77,21 +83,25 @@ public class Spotiflow {
     protected File trainingOutputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
-    protected boolean savePredictionImages;
+    protected boolean cleanTempDir;
     protected boolean disableGPU;
     protected boolean process3d;
     protected double probabilityThreshold;
-    protected double minDistance;
+    protected int minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
     protected String doSubpixel;
     protected String pathClass;
     protected boolean classChannelName;
+    protected int nThreads;
+    protected boolean isOmeZarr;
+    protected boolean clearAllChildObjects;
+    protected boolean clearChildObjectsBelongingToCurrentChannels;
 
-    private int nThreads = -1;
     private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
-    private final String FILE_EXTENSION = ".ome.tif";
+    private final String ZARR_FILE_EXTENSION = ".ome.zarr";
+    private final String TIFF_FILE_EXTENSION = ".ome.tiff";
     private final String ALL_SLICES = "allZ";
     private File imageDirectory = null;
 
@@ -109,7 +119,12 @@ public class Spotiflow {
                                      double y, double z, int c, int t, double intensity, double probability) {
         ImagePlane imagePlane = ImagePlane.getPlaneWithChannel(c, (int) z, t);
         ROI pointROI = ROIs.createPointsROI(x, y, imagePlane);
-        PathObject pointObject = PathObjects.createDetectionObject(pointROI, PathClass.fromString(channelClass), null);
+        PathObject pointObject = PathObjects.createDetectionObject(pointROI);
+
+        if(channelClass == null || channelClass.equals("null"))
+            pointObject.resetPathClass();
+        else pointObject.setPathClass(PathClass.fromString(channelClass));
+
         ObjectMeasurements.addShapeMeasurements(pointObject, cal);
         pointObject.getMeasurementList().put("Spotiflow intensity", intensity);
         pointObject.getMeasurementList().put("Spotiflow probability", probability);
@@ -137,7 +152,7 @@ public class Spotiflow {
                 try {
                     pool.awaitTermination(2, TimeUnit.DAYS);
                 } catch (InterruptedException e) {
-                    logger.warn("Process was interrupted! " + e.getLocalizedMessage(), e);
+                    logger.warn("Process was interrupted! {}", e.getLocalizedMessage(), e);
                 }
             }
         } else {
@@ -169,13 +184,8 @@ public class Spotiflow {
             VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner(command);
 
             // This is the list of commands after the 'python' call
-            // We want to ignore all warnings to make sure the log is clean (-W ignore)
-            // We want to be able to call the module by name (-m)
-            // We want to make sure UTF8 mode is by default (-X utf8)
-            List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+            List<String> spotiflowArguments = new ArrayList<>();
 
-            //TODO set it as for cellpose when available
-            //spotiflowArguments.add(command);
             spotiflowArguments.add("--help");
 
             veRunner.setArguments(spotiflowArguments);
@@ -210,40 +220,88 @@ public class Spotiflow {
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
         int nZ = imageData.getServer().nZSlices();
 
-        if(savePredictionImages) {
+        if(cleanTempDir) {
             cleanDirectory(tempDirectory);
+        }
+        String fileExtension;
+        if(isOmeZarr) {
+            fileExtension = ZARR_FILE_EXTENSION;
+        } else {
+            fileExtension = TIFF_FILE_EXTENSION;
         }
 
         this.imageDirectory = new File(tempDirectory, imageName);
         this.imageDirectory = process3d ? new File(this.imageDirectory, "3D") : this.imageDirectory;
-        if(!this.imageDirectory.exists())
+        if(!this.imageDirectory.exists()) {
             this.imageDirectory.mkdirs();
+        }
+
+        // clear all detections that belong to the current selected channel(s)
+        if(this.clearChildObjectsBelongingToCurrentChannels){
+            Set<String> channelNames = channels.keySet();
+            logger.info("Clearing all child objects with the following class(es) : {}", channelNames);
+            List<PathObject> childToDelete = new ArrayList<>();
+            for (PathObject parent : parents) {
+                for (PathObject childObject : parent.getChildObjects()) {
+                    if(channelNames.contains(childObject.getPathClass().getName())){
+                        childToDelete.add(childObject);
+                    }
+                }
+            }
+            imageData.getHierarchy().removeObjects(childToDelete, false);
+        }
+
+        // clear previous detections
+        if(this.clearAllChildObjects) {
+            logger.info("Clearing all child objects");
+            parents.forEach(PathObject::clearChildObjects);
+        }
+
+        // create new channel PathClass if it doesn't already exist
+        javafx.application.Platform.runLater(()-> {
+            ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
+            if (this.classChannelName) {
+                for (String channel : this.channels.keySet()) {
+                    PathClass channelPathClass = PathClass.fromString(channel);
+                    if (!availablePathClasses.contains(channelPathClass)) {
+                        availablePathClasses.add(channelPathClass);
+                    }
+                }
+            } else {
+                PathClass channelPathClass = PathClass.fromString(this.pathClass);
+                if (!availablePathClasses.contains(channelPathClass)) {
+                    availablePathClasses.add(channelPathClass);
+                }
+            }
+            QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
+        });
 
         // loop over the different channels to process
+        Map<String, Map<String, PathObject>> channelCorrespondanceMap = new HashMap<>();
         for(String channel: channels.keySet()) {
             logger.info("Working on channel {}", channel);
-            Map<String, PathObject> correspondanceMap = new HashMap<>();
             Collection<PathObject> missingParents = new ArrayList<>();
-
-            if(savePredictionImages) {
+            Map<String, PathObject> correspondanceMap = new HashMap<>();
+            
+            if (cleanTempDir) {
                 missingParents = (Collection<PathObject>) parents;
-            }else {
+            } else {
                 for (PathObject parent : parents) {
                     ROI region = parent.getROI();
                     String name = channel + NAME_SEPARATOR +
-                            (int)region.getBoundsX() + NAME_SEPARATOR +
-                            (int)region.getBoundsY() + NAME_SEPARATOR +
-                            (int)region.getBoundsWidth() + NAME_SEPARATOR +
-                            (int)region.getBoundsHeight() + NAME_SEPARATOR;
+                            (int) region.getBoundsX() + NAME_SEPARATOR +
+                            (int) region.getBoundsY() + NAME_SEPARATOR +
+                            (int) region.getBoundsWidth() + NAME_SEPARATOR +
+                            (int) region.getBoundsHeight() + NAME_SEPARATOR;
 
                     name += process3d ? ALL_SLICES : parent.getROI().getZ();
 
-                    File optFile = new File(this.imageDirectory, name + FILE_EXTENSION);
-                    if(optFile.exists()){
+                    File optFile = new File(this.imageDirectory, name + fileExtension);
+                    if (optFile.exists()) {
                         logger.info("The parent shape '{}' is already saved ; skip saving it again", name);
                         correspondanceMap.put(name, parent);
-                    }else{
-                        logger.warn("The parent shape '{}' is missing. Will be saved anyway", name);
+                    } else {
+                        logger.info("The parent shape '{}' is missing. Will be saved anyway", name);
                         missingParents.add(parent);
                     }
                 }
@@ -251,61 +309,86 @@ public class Spotiflow {
 
             // save images in temp folder
             for (PathObject parent : missingParents) {
-                logger.info("Saving image(s) into the temporary folder");
-                try{
-                    RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
+                RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
 
-                    String name = channel + NAME_SEPARATOR +
-                            region.getX() + NAME_SEPARATOR +
-                            region.getY() + NAME_SEPARATOR +
-                            region.getWidth() + NAME_SEPARATOR +
-                            region.getHeight() + NAME_SEPARATOR;
+                String name = channel + NAME_SEPARATOR +
+                        region.getX() + NAME_SEPARATOR +
+                        region.getY() + NAME_SEPARATOR +
+                        region.getWidth() + NAME_SEPARATOR +
+                        region.getHeight() + NAME_SEPARATOR;
 
-                    name += process3d ? ALL_SLICES : parent.getROI().getZ();
+                int currentSlice = parent.getROI().getZ();
+                name += process3d ? ALL_SLICES : currentSlice;
 
-                    correspondanceMap.put(name, parent);
-                    String outputPath = new File(this.imageDirectory, name + FILE_EXTENSION).getAbsolutePath();
+                correspondanceMap.put(name, parent);
+                String outputPath = new File(this.imageDirectory, name + fileExtension).getAbsolutePath();
 
+                // create a new ImageServer containing only the channel of interest
+                ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
+                        .extractChannels(channels.get(channel))
+                        .build();
+                ImageData<BufferedImage> selectedData = new ImageData<>(selectedChannels);
+
+                if(isOmeZarr) {
+                    // write the ome.zarr
+                    logger.info("Saving image(s) into the temporary folder as OME-Zarr");
+                    OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
+                    builder.parallelize(nThreads)
+                            .tileSize(512)
+                            .region(region)
+                            .downsamples(1, 2);
+
+                    // process all slices
+                    if (!process3d)
+                        builder.zSlices(currentSlice, currentSlice + 1);
+
+                    // save ome-zarr
+                    try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
+                        omeZarrWriter.writeImage();
+                    } catch (Exception e) {
+                        logger.error("Error during writing OME-Zarr file", e);
+                    }
+                }else{
                     // write the ome.tiff
+                    logger.info("Saving image(s) into the temporary folder as OME-Tiff");
                     OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
                     builder.parallelize()
-                           .tileSize(512)
-                           .region(region)
-                           .scaledDownsampling(1, 2)
-                           .channels(channels.get(channel));
+                            .tileSize(512)
+                            .region(region)
+                            .scaledDownsampling(1, 2)
+                            .channels(channels.get(channel));
 
                     // process all slices
                     if(process3d)
                         builder.allZSlices();
 
                     // save ome-tiff
-                    builder.build().writeSeries(outputPath);
-                } catch (Exception e) {
-                    logger.error("Cannot convert ROI to ImagePlus");
+                    try {
+                        builder.build().writeSeries(outputPath);
+                    } catch (Exception e) {
+                        logger.error("Error during writing OME-TIFF file", e);
+                    }
                 }
             }
-
-            // run spotiflow
-            try {
-                logger.info("Running Spotiflow");
-                runSpotiflow();
-            } catch (IOException | InterruptedException e) {
-                logger.error("Failed to Run Spotiflow", e);
-                return;
-            }
-
-
+            channelCorrespondanceMap.put(channel, correspondanceMap);
+        }
+        
+        // run spotiflow
+        try {
+            logger.info("Running Spotiflow");
+            runSpotiflow();
+        } catch (IOException | InterruptedException e) {
+            logger.error("Failed to Run Spotiflow", e);
+            return;
+        }
+            
+        for(String channel: channels.keySet()) {
+            Map<String, PathObject> correspondanceMap = channelCorrespondanceMap.get(channel);
+            
             // create new channel PathClass if it doesn't already exist
             String detectionClass = this.pathClass;
             if(this.classChannelName){
                 detectionClass = channel;
-            }
-
-            ObservableList<PathClass> availablePathClasses = QPEx.getQuPath().getAvailablePathClasses();
-            PathClass channelPathClass = PathClass.fromString(detectionClass);
-            if (!availablePathClasses.contains(channelPathClass)) {
-                availablePathClasses.add(channelPathClass);
-                QPEx.getQuPath().getProject().setPathClasses(availablePathClasses);
             }
 
             Map<Integer, PathObject> annotationZMap = new HashMap<>();
@@ -313,13 +396,14 @@ public class Spotiflow {
 
             // read results, add points and add measurements
             for (String name : correspondanceMap.keySet()) {
-                File detectionFile = new File(this.imageDirectory, name + ".ome.csv");
-                PathObject parent = correspondanceMap.get(name);
+                File detectionFile = findResultFile(name);
 
                 if (detectionFile.exists()) {
                     String[] regionAttributes = name.split(NAME_SEPARATOR);
                     double x0 = Double.parseDouble(regionAttributes[1]);
                     double y0 = Double.parseDouble(regionAttributes[2]);
+                    PathObject parent = correspondanceMap.get(name);
+                    ROI parentROI = parent.getROI();
 
                     try {
                         List<String> detectionList = Files.readAllLines(detectionFile.toPath());
@@ -351,17 +435,19 @@ public class Spotiflow {
                             double intensity = Double.parseDouble(attributes[pos+2]);
                             double probability = Double.parseDouble(attributes[pos+3]);
 
-                            // populate the list of child according to the current Z
-                            List<PathObject> child;
-                            PathObject parentZAnnotation = annotationZMap.get(((int) zf));
-                            if(annotationChildMap.containsKey(parentZAnnotation)){
-                                child = annotationChildMap.get(parentZAnnotation);
-                            }else{
-                                child = new ArrayList<>();
+                            if(parentROI.contains(xf, yf)) {
+                                // populate the list of child according to the current Z
+                                List<PathObject> child;
+                                PathObject parentZAnnotation = annotationZMap.get(((int) zf));
+                                if (annotationChildMap.containsKey(parentZAnnotation)) {
+                                    child = annotationChildMap.get(parentZAnnotation);
+                                } else {
+                                    child = new ArrayList<>();
+                                }
+                                child.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
+                                        parentPlane.getT(), intensity, probability));
+                                annotationChildMap.put(parentZAnnotation, child);
                             }
-                            child.add(objectToPoint(detectionClass, cal, xf, yf, zf, parentPlane.getC(),
-                                    parentPlane.getT(), intensity, probability));
-                            annotationChildMap.put(parentZAnnotation, child);
                         }
 
                     } catch (IOException e) {
@@ -373,13 +459,29 @@ public class Spotiflow {
             // Assign the objects to the parent object
             for(PathObject parentZAnnotation: annotationChildMap.keySet()){
                 parentZAnnotation.setLocked(true);
-                parentZAnnotation.clearChildObjects();
                 parentZAnnotation.addChildObjects(annotationChildMap.get(parentZAnnotation));
             }
 
             // update hierarchy to show the objects
             imageData.getHierarchy().fireHierarchyChangedEvent(this);
         }
+    }
+
+    /**
+     * Get, from the output folder, the csv file corresponding to current analysis.
+     *
+     * @param name
+     * @return
+     */
+    private File findResultFile(String name){
+       List<File> candidateResultsFile = Arrays.stream(Objects.requireNonNull(this.imageDirectory.listFiles()))
+                .filter(e -> e.getName().contains(name) && e.getName().endsWith(".csv"))
+                .collect(Collectors.toList());
+       if(candidateResultsFile.isEmpty()) {
+           return new File("");
+       }else{
+           return candidateResultsFile.getFirst();
+       }
     }
 
 
@@ -423,7 +525,6 @@ public class Spotiflow {
         // Set python executable in the environment
         String pythonPath = spotiflowSetup.getSpotiflowPythonPath();
 
-        //TODO try to mimic cellpose here and remove those line + function argument when possible
         switch (Platform.getCurrent()) {
             case UNIX:
             case OSX:
@@ -445,23 +546,21 @@ public class Spotiflow {
      * @throws InterruptedException Exception in case of command thread has some failing
      */
     private void runSpotiflow() throws InterruptedException, IOException {
-
         // Need to define the name of the command we are running.
         VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-predict");
 
         // This is the list of commands after the 'python' call
-        // We want to ignore all warnings to make sure the log is clean (-W ignore)
-        // We want to be able to call the module by name (-m)
-        // We want to make sure UTF8 mode is by default (-X utf8)
-        List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> spotiflowArguments = new ArrayList<>();
 
-        //TODO set it as for cellpose when available
-        //spotiflowArguments.add("spotiflow-predict");
         spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
         spotiflowArguments.add("--out-dir");
         spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
         spotiflowArguments.add("--verbose");
 
+        if(this.isOmeZarr) {
+            spotiflowArguments.add("--zarr-component");
+            spotiflowArguments.add("s0");
+        }
         if(this.pretrainedModelName != null) {
             spotiflowArguments.add("--pretrained-model");
             spotiflowArguments.add(this.pretrainedModelName);
@@ -501,6 +600,9 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
+
+        // Add a waitFor() here to fix MAC Mx chip killing thread issue (#15)
+        veRunner.getProcess().waitFor();
     }
 
     /**
@@ -552,10 +654,8 @@ public class Spotiflow {
         VirtualEnvironmentRunner veRunner = getVirtualEnvironmentRunner("spotiflow-train");
 
         // This is the list of commands after the 'python' call
-        List<String> spotiflowArguments = new ArrayList<>();//(Arrays.asList("-Xutf8", "-W", "ignore", "-m"));
+        List<String> spotiflowArguments = new ArrayList<>();
 
-        //TODO set it as for cellpose when available
-        //spotiflowArguments.add("spotiflow-train");
         spotiflowArguments.add(this.trainingInputDir.getAbsolutePath());
         spotiflowArguments.add("--out-dir");
         spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
