@@ -36,7 +36,7 @@ def spotiflow = Spotiflow.builder()
 //        .saveTempImagesAsOmeZarr()                           // OPTIONAL : ONLY AVAILABLE FOR SPOTIFLOW >= 0.5.8. Save temp images as ome-zarr instead of ome.tiff
 //        .clearAllChildObjects()                              // OPTIONAL : Clear all previous detections, whatever their class
         .clearChildObjectsBelongingToCurrentChannels()       // OPTIONAL : Clear all previous detections which belong to the current selected channels (i.e. with their class set with the name of the channel)
-        .channels("SPOT", "SPOT2")                 // REQUIRED : list of channel name(s) to process. At least one channel is required
+        .channels("channel 1", "channel 2")        // REQUIRED : list of channel name(s) to process. At least one channel is required
         .cleanTempDir()                                      // OPTIONAL : Clean all files from the tempDirectory
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .build()
