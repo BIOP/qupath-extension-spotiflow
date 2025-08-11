@@ -8,7 +8,7 @@ Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://doi.org/10.
 This repo adds some support to use [Spotiflow](https://github.com/weigertlab/spotiflow) within QuPath through a Python virtual environment.
 
 > [!WARNING]
-> This extension is developed for QuPath 0.5.x
+> This extension is developed for QuPath 0.6.x
 
 
 # Citing
@@ -24,13 +24,14 @@ As this code is neither novel nor entirely original, there is no linked publicat
 ## Code authorship
 **Author**: Rémy Dornier (1)
 
-**Contributors**: Olivier Burri (1), Nicolas Chiaruttini (1), Romain Guiet (1)
+**Contributors**: Albert Dominguez Mantes (2), Olivier Burri (1), Nicolas Chiaruttini (1), Romain Guiet (1)
 
 This code heavily mirrors functions and design implemented in [QuPath Cellpose](https://github.com/BIOP/qupath-extension-cellpose).
 
 **Affiliations**
 
 (1) EPFL BioImaging and Optics Platform (BIOP)
+(2) EPFL Weigert Lab
 
 ### If you use this extension, you should cite the following publications
 
@@ -92,11 +93,27 @@ On macOS or Linux:
 where `{HOME}` will be the location of your home directory, typically `/Users/user-name/` on macOS or `/home/user-name/` on Linux.
 
 ## Step 2: Install the QuPath Spotiflow extension
+### On QuPath 0.6.x
 
-Download the latest `qupath-extension-spotiflow-[version].jar` file from [releases](https://github.com/biop/qupath-extension-spotiflow/releases) and unzip it into your `extensions` directory. 
+- Open QuPath
+- Go under `Extensions -> Manage extensions`
+- Expand the `QuPath-BIOP catalog`
 
-If your extensions directory is unset, drag & drop `qupath-extension-spotiflow-[version].jar` onto the main QuPath window. You'll be prompted to select a QuPath user directory.
-The extension will then be copied to a location inside that directory.
+> Note: if you don't have the **QuPath-BIOP-catalog** installed, please follow the [catalog installation steps](https://github.com/BIOP/qupath-biop-catalog?tab=readme-ov-file#installation)
+
+- Search for `QuPath Spotiflow extension` and click on the green button
+- Select the latest version
+- Click on `Install`
+
+> Note: If you need to update the extension, click on the ⚙️ button and select the latest version to install.
+
+### On QuPath 0.5.x
+
+Download the latest `qupath-extension-spotiflow-[version].jar` file from [releases](https://github.com/biop/qupath-extension-spotiflow/releases) and copy it into your extensions directory.
+
+If your extensions directory is unset, drag & drop `qupath-extension-spotiflow-[version].jar` onto the main QuPath window. 
+You'll be prompted to select a QuPath user directory. The extension will then be copied to a location inside that directory.
+You finally need to restart QuPath.
 
 <!--
 To copy `run-cellpose-qc.py`, go to Extensions > Installed Extensions and click on "Open Extensions Directory". You can place the `run-cellpose-qc.py` in the same folder.
@@ -147,7 +164,7 @@ Running Spotiflow is done via a script and is very similar to the excellent [QuP
 
 You can find a template in QuPath in
 
-`Extensions > Spotiflow > Spotiflow detection script template`
+`Extensions > Spotiflow > Spotiflow detection template`
 
 Or you can download the [Spotiflow_detection_template.groovy](src/main/resources/scripts/Spotiflow_detection_template.groovy) script from this repo and open it in the QuPath script editor.  
 
@@ -156,7 +173,7 @@ Or you can download the [Spotiflow_detection_template.groovy](src/main/resources
 
 ### Getting all available arguments
 
-All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-spotiflow/).
+All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-spotiflow/qupath/ext/biop/spotiflow/SpotiflowBuilder.html).
 You can pass additional options to `spotiflow` by adding `.addParameter()` before the `.build()` line. 
 
 To get the available additional arguments, call the help from the `spotiflow` object using `spotiflow.helpPredict()`

@@ -21,19 +21,24 @@
 // -> List of all pre-trained models : https://weigertlab.github.io/spotiflow/pretrained.html
 
 def spotiflow = Spotiflow.builder()
-//        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in qpProject/spotiflow-temp folder
+//        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in 'qpProject/spotiflow-temp' folder
 //        .setModelDir(new File("path/to/my/model"))           // OPTIONAL : path to your own trained model
 //        .setPretrainedModelName("smfish_3d")                 // OPTIONAL : Default is 'general'
-//        .setMinDistance(2)                                   // OPTIONAL : Positive value
+//        .setMinDistance(2)                                   // OPTIONAL : Positive integer value
 //        .setProbabilityThreshold(0.2)                        // OPTIONAL : Positive value
-//        .disableGPU(true)                                    // OPTIONAL : true to force CPU ; default is false (use GPU if available)
-//        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
-//        .process3d(true)                                     // OPTIONAL : process the entire zstack ; default false
+//        .disableGPU()                                        // OPTIONAL : Force using CPU ; default is automatic (let spotiflow decide)
+//        .process3d()                                         // OPTIONAL : process the entire zstack
 //        .doSubpixel(true)                                    // OPTIONAL : true to get subpixel resolution ; false to not. Default: let spotiflow choose
 //        .setClass("ClassName")                               // OPTIONAL : set the same class for all detections. Default: not assign any classes
-//        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
-        .channels("SPOT")
-        .savePredictionImages(false)
+        .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes
+//        .nThreads(12)                                        // OPTIONAL : How much you want to paralellize processing. Default 12
+//        .saveBuilder("MyFancyName")                          // OPTIONAL : To save builder parameters as JSON file
+//        .saveTempImagesAsOmeZarr()                           // OPTIONAL : ONLY AVAILABLE FOR SPOTIFLOW >= 0.5.8. Save temp images as ome-zarr instead of ome.tiff
+//        .clearAllChildObjects()                              // OPTIONAL : Clear all previous detections, whatever their class
+        .clearChildObjectsBelongingToCurrentChannels()       // OPTIONAL : Clear all previous detections which belong to the current selected channels (i.e. with their class set with the name of the channel)
+        .channels("channel 1", "channel 2")        // REQUIRED : list of channel name(s) to process. At least one channel is required
+        .cleanTempDir()                                      // OPTIONAL : Clean all files from the tempDirectory
+//        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .build()
 
 // Run detection for the selected objects

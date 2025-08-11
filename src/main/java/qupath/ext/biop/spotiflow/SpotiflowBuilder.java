@@ -16,12 +16,18 @@
 
 package qupath.ext.biop.spotiflow;
 
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.GsonTools;
 import qupath.lib.scripting.QP;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,15 +58,20 @@ public class SpotiflowBuilder {
     private File trainingInputDir = null;
     private File trainingOutputDir = null;
     private Map<String, Integer> channels = new HashMap<>();
-    private boolean savePredictionImages = true;
+    private boolean cleanTempDir = false;
     private boolean disableGPU = false;
+    private boolean isOmeZarr = false;
     private boolean process3d = false;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
-    private double minDistance = -1;
+    private int minDistance = -1;
     private boolean classChannelName = false;
     private String pathClass = null;
-
+    private transient boolean saveBuilder;
+    private transient String builderName;
+    private int nThreads = 12; // default from qupath ome-zarr writer
+    private boolean clearChildObjectsBelongingToCurrentChannels = false;
+    private boolean clearAllChildObjects = false;
     /**
      * Build a spotiflow model
      */
@@ -85,9 +96,21 @@ public class SpotiflowBuilder {
      *
      * @param savePredictionImages  overwrite variable
      * @return this builder
+     * @deprecated use {@link SpotiflowBuilder#cleanTempDir()} instead
      */
+    @Deprecated
     public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
-        this.savePredictionImages = savePredictionImages;
+        this.cleanTempDir = savePredictionImages;
+        return this;
+    }
+
+    /**
+     * clear all files in the tem
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder cleanTempDir() {
+        this.cleanTempDir = true;
         return this;
     }
 
@@ -120,7 +143,12 @@ public class SpotiflowBuilder {
      * @return this builder
      */
     public SpotiflowBuilder setMinDistance(double minDistance) {
-        this.minDistance = minDistance;
+        int minDistanceInt = (int)minDistance;
+        if(Math.abs(minDistanceInt - minDistance) > 0){
+            logger.warn("The minimum distance you set is not an integer number ({}) ; " +
+                    "will be rounded to {}", minDistance, minDistanceInt);
+        }
+        this.minDistance = minDistanceInt;
         return this;
     }
 
@@ -153,8 +181,8 @@ public class SpotiflowBuilder {
 
     /**
      * Specify channels by name. Useful for detecting nuclei for one channel
-     * within a multi-channel image, or potentially for trained models that
-     * support multi-channel input.
+     * within a multichannel image, or potentially for trained models that
+     * support multichannel input.
      *
      * @param channels channels names to use
      * @return this builder
@@ -199,11 +227,10 @@ public class SpotiflowBuilder {
     /**
      * Forces using CPU instead of GPU
      *
-     * @param disableGPU  override disableGPU
      * @return this builder
      */
-    public SpotiflowBuilder disableGPU(boolean disableGPU) {
-        this.disableGPU = disableGPU;
+    public SpotiflowBuilder disableGPU() {
+        this.disableGPU = true;
         return this;
     }
 
@@ -212,9 +239,22 @@ public class SpotiflowBuilder {
      *
      * @param process3d  override process3d
      * @return this builder
+     * @deprecated use {@link SpotiflowBuilder#process3d()} instead
      */
+    @Deprecated
     public SpotiflowBuilder process3d(boolean process3d) {
         this.process3d = process3d;
+        return this;
+    }
+
+    /**
+     * Allows to process all slices of 3D stack.
+     * Has to be used together with a 3D-model (custom or pre-trained)
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder process3d() {
+        this.process3d = true;
         return this;
     }
 
@@ -240,6 +280,19 @@ public class SpotiflowBuilder {
     }
 
     /**
+     * Specify the number of threads to use for processing.
+     * If you encounter problems, setting this to 1 may help to resolve them by preventing
+     * multithreading.
+     *
+     * @param nThreads the number of threads to use
+     * @return this builder
+     */
+    public SpotiflowBuilder nThreads(int nThreads) {
+        this.nThreads = nThreads;
+        return this;
+    }
+
+    /**
      * Allows to go subpixel resolution
      *
      * @return this builder
@@ -249,13 +302,60 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Save this builder as a JSON file in order to be able to reuse it in place
+     *
+     * @param name A name to append to the JSON file. Keep it meaningful for your needs
+     * @return this builder
+     */
+    public SpotiflowBuilder saveBuilder(String name) {
+        this.saveBuilder = true;
+        this.builderName = name;
+        return this;
+    }
+
+    /**
+     * True to save images in the temp folder as OME-Zarr files. Otherwise, saved as OME-TIFF
+     * WARNING : OME-Zarr option is only available from spotiflow >= 0.5.8
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder saveTempImagesAsOmeZarr() {
+        this.isOmeZarr = true;
+        return this;
+    }
+
+    /**
+     * Remove all child objects (i.e. previous points) from the parent shapes
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder clearAllChildObjects() {
+        this.clearAllChildObjects = true;
+        return this;
+    }
+
+    /**
+     * Remove child objects (i.e. previous points) from the parent shapes which belongs to
+     * the current selected channel(s) i.e. which have the same class as the channel name.
+     * Should be used together with {@link SpotiflowBuilder#setClassChannelName()} to have the
+     * desired effect.
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder clearChildObjectsBelongingToCurrentChannels() {
+        this.clearChildObjectsBelongingToCurrentChannels = true;
+        return this;
+    }
+
+
     //  SPOTIFLOW OPTIONS
     // ------------------
     /**
      * Generic means of adding a spotiflow parameter
      *
-     * @param flagName  the name of the flag, eg. "save_every"
-     * @param flagValue the value that is linked to the flag, eg. "20". Can be an empty string or null if it is not needed
+     * @param flagName  the name of the flag, e.g. "save_every"
+     * @param flagValue the value that is linked to the flag, e.g. "20". Can be an empty string or null if it is not needed
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName, String flagValue) {
@@ -267,12 +367,11 @@ public class SpotiflowBuilder {
     /**
      * Generic means of adding a spotiflow parameter
      *
-     * @param flagName the name of the flag, eg. "save_every"	 * @param flagName the name of the flag, eg. "save_every"
+     * @param flagName the name of the flag, e.g. "save_every"
      * @return this builder
      */
     public SpotiflowBuilder addParameter(String flagName) {
-        addParameter(flagName, null);
-        return this;
+        return addParameter(flagName, null);
     }
 
 
@@ -293,6 +392,9 @@ public class SpotiflowBuilder {
         }
         spotiflow.tempDirectory = this.tempDirectory;
 
+        // Give it the number of threads to use
+        spotiflow.nThreads = this.nThreads;
+
         spotiflow.modelDir = this.modelDir;
         spotiflow.pretrainedModelName = this.pretrainedModelName;
 
@@ -308,7 +410,7 @@ public class SpotiflowBuilder {
         spotiflow.trainingOutputDir = this.trainingOutputDir;
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
-        spotiflow.savePredictionImages = this.savePredictionImages;
+        spotiflow.cleanTempDir = this.cleanTempDir;
         spotiflow.disableGPU = this.disableGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
@@ -316,7 +418,30 @@ public class SpotiflowBuilder {
         spotiflow.process3d = this.process3d;
         spotiflow.doSubpixel = this.doSubpixel;
         spotiflow.pathClass = this.pathClass;
+        spotiflow.isOmeZarr = this.isOmeZarr;
         spotiflow.classChannelName = this.classChannelName;
+        spotiflow.clearAllChildObjects = this.clearAllChildObjects;
+        spotiflow.clearChildObjectsBelongingToCurrentChannels = this.clearChildObjectsBelongingToCurrentChannels;
+
+        // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
+        if (this.saveBuilder) {
+            Gson gson = GsonTools.getInstance(true);
+
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH'h'mm");
+            LocalDateTime now = LocalDateTime.now();
+            File savePath = new File(QP.PROJECT_BASE_DIR, this.builderName + "_" + dtf.format(now) + ".json");
+
+            try {
+                FileWriter fw = new FileWriter(savePath);
+                gson.toJson(this, SpotiflowBuilder.class, fw);
+                fw.flush();
+                fw.close();
+                logger.info("Spotiflow Builder serialized and saved to {}", savePath);
+
+            } catch (IOException e) {
+                logger.error("Could not save builder to JSON file {}", savePath.getAbsolutePath(), e);
+            }
+        }
 
         return spotiflow;
     }
