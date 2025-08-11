@@ -13,7 +13,7 @@ repositories {
 qupathExtension {
     name = "qupath-extension-spotiflow"
     group = "ch.epfl.biop"
-    version = "0.2.0-SNAPSHOT"
+    version = "0.2.0"
     description = "QuPath extension to use Spotiflow"
     automaticModule = "qupath.ext.biop.spotiflow"
 }
