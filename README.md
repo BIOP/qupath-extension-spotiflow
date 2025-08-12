@@ -95,17 +95,15 @@ where `{HOME}` will be the location of your home directory, typically `/Users/us
 ## Step 2: Install the QuPath Spotiflow extension
 ### On QuPath 0.6.x
 
-- Open QuPath
-- Go under `Extensions -> Manage extensions`
-- Expand the `QuPath-BIOP catalog`
+- Install and setup the [qupath-biop-catalog](https://github.com/BIOP/qupath-biop-catalog) first.
+- Open the Extension Manager
+- Follow steps described in the [official documention](https://qupath.readthedocs.io/en/latest/docs/intro/extensions.html) to browse and install/update the latest version of **QuPath Spotiflow** extension from the **QuPath BIOP** catalog.
+  
+> [!NOTE]
+> If your extensions directory is unset, create a new empty folder somewhere on your computer. On QuPath, go under `Edit -> Preferences -> Extensions` and browse the empty folder you've just created.
+> Extensions will then be added inside this folder.
 
-> Note: if you don't have the **QuPath-BIOP-catalog** installed, please follow the [catalog installation steps](https://github.com/BIOP/qupath-biop-catalog?tab=readme-ov-file#installation)
-
-- Search for `QuPath Spotiflow extension` and click on the green button
-- Select the latest version
-- Click on `Install`
-
-> Note: If you need to update the extension, click on the ⚙️ button and select the latest version to install.
+- You might then need to restart QuPath (but not your computer).
 
 ### On QuPath 0.5.x
 
