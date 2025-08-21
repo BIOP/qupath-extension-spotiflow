@@ -20,6 +20,8 @@
 // If you want to use any other pre-trained models, specify its name in setPretrainedModelName()
 // -> List of all pre-trained models : https://weigertlab.github.io/spotiflow/pretrained.html
 
+Date start = new Date()
+
 def spotiflow = Spotiflow.builder()
 //        .tempDirectory(new File("path/to/tmp/folder"))       // OPTIONAL : default is in 'qpProject/spotiflow-temp' folder
 //        .setModelDir(new File("path/to/my/model"))           // OPTIONAL : path to your own trained model
@@ -58,7 +60,12 @@ spotiflow.detectObjects( imageData, getProjectEntry().getImageName(), pathObject
 // You could do some post-processing here, e.g. to remove objects that are too small, but it is usually better to
 // do this in a separate script so you can see the results before deleting anything.
 
+Date stop = new Date()
+long milliseconds = stop.getTime() - start.getTime()
+int seconds = (int) (milliseconds / 1000) % 60 ;
+int minutes = (int) ((milliseconds / (1000*60)) % 60);
+int hours   = (int) ((milliseconds / (1000*60*60)) % 24);
+println "Processing done in " + hours + " hour(s) " + minutes + " minute(s) " + seconds + " second(s)"
 println 'Spotiflow detection script done'
-
 
 import qupath.ext.biop.spotiflow.Spotiflow
