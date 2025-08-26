@@ -168,6 +168,7 @@ Or you can download the [Spotiflow_detection_template.groovy](src/main/resources
 
 > [!IMPORTANT]
 > Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
+> Some exmaples as provided in the [announcement forum post](https://forum.image.sc/t/qupath-extension-spotiflow-is-now-available/115646)
 
 ### Getting all available arguments
 
