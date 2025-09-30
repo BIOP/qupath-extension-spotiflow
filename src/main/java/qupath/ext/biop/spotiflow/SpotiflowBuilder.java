@@ -19,18 +19,15 @@ package qupath.ext.biop.spotiflow;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
 import qupath.lib.scripting.QP;
-import java.awt.image.BufferedImage;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Spot detection based on the following method:
@@ -49,29 +46,38 @@ import java.util.Map;
 public class SpotiflowBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(SpotiflowBuilder.class);
-
     private final transient SpotiflowSetup spotiflowSetup;
     private final LinkedHashMap<String, String> spotiflowParameters = new LinkedHashMap<>();
+
+    // parameters for prediction only
     private File modelDir = null;
     private String pretrainedModelName = null;
-    private File tempDirectory = null;
-    private File trainingInputDir = null;
-    private File trainingOutputDir = null;
-    private Map<String, Integer> channels = new HashMap<>();
-    private boolean cleanTempDir = false;
-    private boolean disableGPU = false;
-    private boolean isOmeZarr = false;
-    private boolean process3d = false;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
     private int minDistance = -1;
     private boolean classChannelName = false;
     private String pathClass = null;
-    private transient boolean saveBuilder;
     private transient String builderName;
-    private int nThreads = 12; // default from qupath ome-zarr writer
     private boolean clearChildObjectsBelongingToCurrentChannels = false;
     private boolean clearAllChildObjects = false;
+
+    // parameters for Training only
+    private String modelToFineTune = null;
+    private int nEpochs = 200;
+    private File trainingOutputDir = null;
+    private boolean doNotApplyDataAugmentation = false;
+
+    // parameters for both Training and Prediction
+    private int nThreads = 12; // default from qupath ome-zarr writer
+    private File tempDirectory = null;
+    private String[] channels = null;
+    private boolean cleanTempDir = false;
+    private boolean disableGPU = false;
+    private boolean isOmeZarr = false;
+    private boolean process3d = false;
+    private transient boolean saveBuilder;
+
+
     /**
      * Build a spotiflow model
      */
@@ -80,39 +86,10 @@ public class SpotiflowBuilder {
         this.spotiflowSetup = SpotiflowSetup.getInstance();
     }
 
-    /**
-     * Set input folder to predict spots
-     *
-     * @param inputDir  path to prediction input dir
-     * @return this builder
-     */
-    public SpotiflowBuilder tempDirectory(File inputDir) {
-        this.tempDirectory = inputDir;
-        return this;
-    }
 
-    /**
-     * Set input folder to predict spots
-     *
-     * @param savePredictionImages  overwrite variable
-     * @return this builder
-     * @deprecated use {@link SpotiflowBuilder#cleanTempDir()} instead
-     */
-    @Deprecated
-    public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
-        this.cleanTempDir = savePredictionImages;
-        return this;
-    }
-
-    /**
-     * clear all files in the tem
-     *
-     * @return this builder
-     */
-    public SpotiflowBuilder cleanTempDir() {
-        this.cleanTempDir = true;
-        return this;
-    }
+    /* *************************
+     *  For Prediction ONLY
+     * ************************/
 
     /**
      * Set pre-trained model to use for prediction
@@ -164,54 +141,62 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Specify channels. Useful for detecting nuclei for one channel
-     * within a multi-channel image, or potentially for trained models that
-     * support multi-channel input.
+     * Remove all child objects (i.e. previous points) from the parent shapes
      *
-     * @param channels 0-based indices of the channels to use
      * @return this builder
      */
-    public SpotiflowBuilder channels(int... channels) {
-        this.channels = new HashMap<>();
-        for(int channel : channels){
-            this.channels.put(QP.getCurrentImageData().getServer().getChannel(channel).getName(), channel);
-        }
+    public SpotiflowBuilder clearAllChildObjects() {
+        this.clearAllChildObjects = true;
         return this;
     }
 
     /**
-     * Specify channels by name. Useful for detecting nuclei for one channel
-     * within a multichannel image, or potentially for trained models that
-     * support multichannel input.
+     * Allows to go subpixel resolution
      *
-     * @param channels channels names to use
      * @return this builder
      */
-    public SpotiflowBuilder channels(String... channels) {
-        this.channels = new HashMap<>();
-        ImageServer<BufferedImage> currentServer = QP.getCurrentImageData().getServer();
-        for(String channel : channels){
-            for(int i = 0; i < currentServer.nChannels(); i++) {
-                String chName = currentServer.getChannel(i).getName();
-                if (channel.equals(chName)) {
-                    this.channels.put(chName, i);
-                    break;
-                }
-            }
-        }
+    public SpotiflowBuilder setClass(String pathClass) {
+        this.pathClass = pathClass;
         return this;
     }
 
     /**
-     * Set input folder to train a new model
+     * Remove child objects (i.e. previous points) from the parent shapes which belongs to
+     * the current selected channel(s) i.e. which have the same class as the channel name.
+     * Should be used together with {@link SpotiflowBuilder#setClassChannelName()} to have the
+     * desired effect.
      *
-     * @param inputDir  path to the training input dir
      * @return this builder
      */
-    public SpotiflowBuilder setTrainingInputDir(File inputDir) {
-        this.trainingInputDir = inputDir;
+    public SpotiflowBuilder clearChildObjectsBelongingToCurrentChannels() {
+        this.clearChildObjectsBelongingToCurrentChannels = true;
         return this;
     }
+
+    /**
+     * Allows to go subpixel resolution
+     *
+     * @param doSubpixel  override doSubpixel
+     * @return this builder
+     */
+    public SpotiflowBuilder doSubpixel(boolean doSubpixel) {
+        this.doSubpixel = String.valueOf(doSubpixel);
+        return this;
+    }
+
+    /**
+     * Allows to go subpixel resolution
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder setClassChannelName() {
+        this.classChannelName = true;
+        return this;
+    }
+
+    /* *************************
+     *  For Training ONLY
+     * ************************/
 
     /**
      * Set output folder to save a new model
@@ -221,6 +206,40 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder setTrainingOutputDir(File outputDir) {
         this.trainingOutputDir = outputDir;
+        return this;
+    }
+
+
+    public SpotiflowBuilder setModelToFineTune(String pretrainedModelName) {
+        this.modelToFineTune = pretrainedModelName;
+        return this;
+    }
+
+    public SpotiflowBuilder doNotApplyDataAugmentation() {
+        this.doNotApplyDataAugmentation = true;
+        return this;
+    }
+
+    public SpotiflowBuilder nEpochs(int nEpochs) {
+        this.nEpochs = nEpochs;
+        return this;
+    }
+
+
+    /* *************************
+     *  For BOTH Prediction and Training
+     * ************************/
+
+    /**
+     * Specify the number of threads to use for processing.
+     * If you encounter problems, setting this to 1 may help to resolve them by preventing
+     * multithreading.
+     *
+     * @param nThreads the number of threads to use
+     * @return this builder
+     */
+    public SpotiflowBuilder nThreads(int nThreads) {
+        this.nThreads = nThreads;
         return this;
     }
 
@@ -259,46 +278,65 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Allows to go subpixel resolution
+     * Set input folder to predict spots
      *
-     * @param doSubpixel  override doSubpixel
+     * @param inputDir  path to prediction input dir
      * @return this builder
      */
-    public SpotiflowBuilder doSubpixel(boolean doSubpixel) {
-        this.doSubpixel = String.valueOf(doSubpixel);
+    public SpotiflowBuilder tempDirectory(File inputDir) {
+        this.tempDirectory = inputDir;
         return this;
     }
 
     /**
-     * Allows to go subpixel resolution
+     * Set input folder to predict spots
      *
+     * @param savePredictionImages  overwrite variable
      * @return this builder
+     * @deprecated use {@link SpotiflowBuilder#cleanTempDir()} instead
      */
-    public SpotiflowBuilder setClassChannelName() {
-        this.classChannelName = true;
+    @Deprecated
+    public SpotiflowBuilder savePredictionImages(boolean savePredictionImages) {
+        this.cleanTempDir = savePredictionImages;
         return this;
     }
 
     /**
-     * Specify the number of threads to use for processing.
-     * If you encounter problems, setting this to 1 may help to resolve them by preventing
-     * multithreading.
+     * clear all files in the tem
      *
-     * @param nThreads the number of threads to use
      * @return this builder
      */
-    public SpotiflowBuilder nThreads(int nThreads) {
-        this.nThreads = nThreads;
+    public SpotiflowBuilder cleanTempDir() {
+        this.cleanTempDir = true;
         return this;
     }
 
     /**
-     * Allows to go subpixel resolution
+     * Specify channels. Useful for detecting nuclei for one channel
+     * within a multi-channel image, or potentially for trained models that
+     * support multi-channel input.
      *
+     * @param channels 0-based indices of the channels to use
      * @return this builder
      */
-    public SpotiflowBuilder setClass(String pathClass) {
-        this.pathClass = pathClass;
+    public SpotiflowBuilder channels(int... channels) {
+        this.channels = new String[channels.length];
+        for(int i = 0; i < channels.length; i++){
+            this.channels[i] = String.valueOf(channels[i]);
+        }
+        return this;
+    }
+
+    /**
+     * Specify channels by name. Useful for detecting nuclei for one channel
+     * within a multichannel image, or potentially for trained models that
+     * support multichannel input.
+     *
+     * @param channels channels names to use
+     * @return this builder
+     */
+    public SpotiflowBuilder channels(String... channels) {
+        this.channels = channels;
         return this;
     }
 
@@ -326,32 +364,6 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * Remove all child objects (i.e. previous points) from the parent shapes
-     *
-     * @return this builder
-     */
-    public SpotiflowBuilder clearAllChildObjects() {
-        this.clearAllChildObjects = true;
-        return this;
-    }
-
-    /**
-     * Remove child objects (i.e. previous points) from the parent shapes which belongs to
-     * the current selected channel(s) i.e. which have the same class as the channel name.
-     * Should be used together with {@link SpotiflowBuilder#setClassChannelName()} to have the
-     * desired effect.
-     *
-     * @return this builder
-     */
-    public SpotiflowBuilder clearChildObjectsBelongingToCurrentChannels() {
-        this.clearChildObjectsBelongingToCurrentChannels = true;
-        return this;
-    }
-
-
-    //  SPOTIFLOW OPTIONS
-    // ------------------
-    /**
      * Generic means of adding a spotiflow parameter
      *
      * @param flagName  the name of the flag, e.g. "save_every"
@@ -375,6 +387,10 @@ public class SpotiflowBuilder {
     }
 
 
+    /* *************************
+     *  Builder
+     * ************************/
+
     /**
      * Create a {@link Spotiflow}, all ready for detection.
      *
@@ -382,6 +398,8 @@ public class SpotiflowBuilder {
      */
     public Spotiflow build() {
         Spotiflow spotiflow = new Spotiflow();
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH'h'mm");
+        LocalDateTime now = LocalDateTime.now();
 
         // Pick up info on project location and where the data will be stored for training and inference
         File quPathProjectDir = QP.getProject().getPath().getParent().toFile();
@@ -399,22 +417,23 @@ public class SpotiflowBuilder {
         spotiflow.pretrainedModelName = this.pretrainedModelName;
 
         // Prepare temp directory in case it was not set
-        if (this.trainingInputDir == null) {
-            this.trainingInputDir = new File(quPathProjectDir, "spotiflow-temp");
-        }
-        // Prepare temp directory in case it was not set
         if (this.trainingOutputDir == null) {
-            this.trainingOutputDir = new File(quPathProjectDir, "spotiflow-training");
+            this.trainingOutputDir = new File(quPathProjectDir, "models");
         }
-        spotiflow.trainingInputDir = this.trainingInputDir;
-        spotiflow.trainingOutputDir = this.trainingOutputDir;
+        spotiflow.trainingInputDir = new File(this.tempDirectory, "train");
+        spotiflow.validationInputDir = new File(this.tempDirectory, "val");
+        if(this.modelToFineTune != null && !this.modelToFineTune.isEmpty()) {
+            spotiflow.trainingOutputDir = new File(this.trainingOutputDir, dtf.format(now) + "_"+this.modelToFineTune+"_fineTuned_model");
+        }else{
+            spotiflow.trainingOutputDir = new File(this.trainingOutputDir, dtf.format(now) + "_custom_model");
+        }
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
         spotiflow.cleanTempDir = this.cleanTempDir;
         spotiflow.disableGPU = this.disableGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;
-        spotiflow.channels = this.channels;
+        spotiflow.channelsIdx = this.channels;
         spotiflow.process3d = this.process3d;
         spotiflow.doSubpixel = this.doSubpixel;
         spotiflow.pathClass = this.pathClass;
@@ -422,13 +441,13 @@ public class SpotiflowBuilder {
         spotiflow.classChannelName = this.classChannelName;
         spotiflow.clearAllChildObjects = this.clearAllChildObjects;
         spotiflow.clearChildObjectsBelongingToCurrentChannels = this.clearChildObjectsBelongingToCurrentChannels;
+        spotiflow.modelToFineTune = this.modelToFineTune;
+        spotiflow.doNotApplyDataAugmentation = this.doNotApplyDataAugmentation;
+        spotiflow.nEpochs = this.nEpochs;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {
             Gson gson = GsonTools.getInstance(true);
-
-            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH'h'mm");
-            LocalDateTime now = LocalDateTime.now();
             File savePath = new File(QP.PROJECT_BASE_DIR, this.builderName + "_" + dtf.format(now) + ".json");
 
             try {

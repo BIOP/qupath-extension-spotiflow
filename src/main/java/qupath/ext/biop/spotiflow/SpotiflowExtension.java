@@ -30,10 +30,8 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
     private boolean isInstalled = false;
 
     private static final LinkedHashMap<String, String> SCRIPTS = new LinkedHashMap<>() {{
-       // put("Spotiflow training script template", "scripts/Spotiflow_training_template.groovy");
         put("Spotiflow detection script template", "scripts/Spotiflow_detection_template.groovy");
-       // put("Detect nuclei and cells using Spotiflow.groovy", "scripts/Detect_nuclei_and_cells_using_Spotiflow.groovy");
-       // put("Create Spotiflow training and validation images", "scripts/Create_Spotiflow_training_and_validation_images.groovy");
+        put("Spotiflow training script template", "scripts/Spotiflow_training_template.groovy");
     }};
 
     @Override

@@ -23,25 +23,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.images.servers.*;
 import qupath.lib.images.writers.ome.OMEPyramidWriter;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,6 +82,7 @@ public class Spotiflow {
     protected File tempDirectory;
     protected File trainingInputDir ;
     protected File trainingOutputDir;
+    protected File validationInputDir;
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
     protected boolean cleanTempDir;
@@ -89,13 +91,17 @@ public class Spotiflow {
     protected double probabilityThreshold;
     protected int minDistance;
     protected Map<String, Integer> channels = new HashMap<>();
+    protected String[] channelsIdx;
     protected String doSubpixel;
     protected String pathClass;
     protected boolean classChannelName;
     protected int nThreads;
+    protected int nEpochs;
     protected boolean isOmeZarr;
     protected boolean clearAllChildObjects;
     protected boolean clearChildObjectsBelongingToCurrentChannels;
+    protected boolean doNotApplyDataAugmentation;
+    protected String modelToFineTune;
 
     private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
@@ -220,6 +226,17 @@ public class Spotiflow {
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
         int nZ = imageData.getServer().nZSlices();
 
+        // get the channels idx and name
+        try{
+            Integer[] channelsIntIdx = new Integer[channelsIdx.length];
+            for(int i = 0; i < channelsIdx.length; i++){
+                channelsIntIdx[i] = (Integer.parseInt(channelsIdx[i]));
+            }
+            setupChannels(imageData, channelsIntIdx);
+        }catch (Exception e){
+            setupChannels(imageData, channelsIdx);
+        }
+
         if(cleanTempDir) {
             cleanDirectory(tempDirectory);
         }
@@ -309,66 +326,8 @@ public class Spotiflow {
 
             // save images in temp folder
             for (PathObject parent : missingParents) {
-                RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
-
-                String name = channel + NAME_SEPARATOR +
-                        region.getX() + NAME_SEPARATOR +
-                        region.getY() + NAME_SEPARATOR +
-                        region.getWidth() + NAME_SEPARATOR +
-                        region.getHeight() + NAME_SEPARATOR;
-
-                int currentSlice = parent.getROI().getZ();
-                name += process3d ? ALL_SLICES : currentSlice;
-
+                String name = saveImage(imageData, this.imageDirectory, parent, channel, fileExtension);
                 correspondanceMap.put(name, parent);
-                String outputPath = new File(this.imageDirectory, name + fileExtension).getAbsolutePath();
-
-                // create a new ImageServer containing only the channel of interest
-                ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
-                        .extractChannels(channels.get(channel))
-                        .build();
-                ImageData<BufferedImage> selectedData = new ImageData<>(selectedChannels);
-
-                if(isOmeZarr) {
-                    // write the ome.zarr
-                    logger.info("Saving image(s) into the temporary folder as OME-Zarr");
-                    OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
-                    builder.parallelize(nThreads)
-                            .tileSize(512)
-                            .region(region)
-                            .downsamples(1, 2);
-
-                    // process all slices
-                    if (!process3d)
-                        builder.zSlices(currentSlice, currentSlice + 1);
-
-                    // save ome-zarr
-                    try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
-                        omeZarrWriter.writeImage();
-                    } catch (Exception e) {
-                        logger.error("Error during writing OME-Zarr file", e);
-                    }
-                }else{
-                    // write the ome.tiff
-                    logger.info("Saving image(s) into the temporary folder as OME-Tiff");
-                    OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
-                    builder.parallelize()
-                            .tileSize(512)
-                            .region(region)
-                            .scaledDownsampling(1, 2)
-                            .channels(channels.get(channel));
-
-                    // process all slices
-                    if(process3d)
-                        builder.allZSlices();
-
-                    // save ome-tiff
-                    try {
-                        builder.build().writeSeries(outputPath);
-                    } catch (Exception e) {
-                        logger.error("Error during writing OME-TIFF file", e);
-                    }
-                }
             }
             channelCorrespondanceMap.put(channel, correspondanceMap);
         }
@@ -465,6 +424,80 @@ public class Spotiflow {
             // update hierarchy to show the objects
             imageData.getHierarchy().fireHierarchyChangedEvent(this);
         }
+    }
+
+
+    private String saveImage(ImageData<BufferedImage> imageData, File outputDir, PathObject parent,
+                             String channel, String fileExtension, String prefixName){
+        RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
+
+        if(prefixName == null || prefixName.isEmpty())
+            prefixName = "";
+        else prefixName = prefixName + NAME_SEPARATOR;
+
+        String name = prefixName + channel + NAME_SEPARATOR +
+                region.getX() + NAME_SEPARATOR +
+                region.getY() + NAME_SEPARATOR +
+                region.getWidth() + NAME_SEPARATOR +
+                region.getHeight() + NAME_SEPARATOR;
+
+        int currentSlice = parent.getROI().getZ();
+        name += process3d ? ALL_SLICES : currentSlice;
+
+        String outputPath = new File(outputDir, name + fileExtension).getAbsolutePath();
+
+        // create a new ImageServer containing only the channel of interest
+        ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
+                .extractChannels(channels.get(channel))
+                .build();
+        ImageData<BufferedImage> selectedData = new ImageData<>(selectedChannels);
+
+        if(isOmeZarr) {
+            // write the ome.zarr
+            logger.info("Saving image(s) into the temporary folder as OME-Zarr");
+            OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
+            builder.parallelize(nThreads)
+                    .tileSize(512)
+                    .region(region)
+                    .downsamples(1, 2);
+
+            // process all slices
+            if (!process3d)
+                builder.zSlices(currentSlice, currentSlice + 1);
+
+            // save ome-zarr
+            try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
+                omeZarrWriter.writeImage();
+            } catch (Exception e) {
+                logger.error("Error during writing OME-Zarr file", e);
+            }
+        }else{
+            // write the ome.tiff
+            logger.info("Saving image(s) into the temporary folder as OME-Tiff");
+            OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
+            builder.parallelize()
+                    .tileSize(512)
+                    .region(region)
+                    .scaledDownsampling(1, 2)
+                    .channels(channels.get(channel));
+
+            // process all slices
+            if(process3d)
+                builder.allZSlices();
+
+            // save ome-tiff
+            try {
+                builder.build().writeSeries(outputPath);
+            } catch (Exception e) {
+                logger.error("Error during writing OME-TIFF file", e);
+            }
+        }
+        return name;
+    }
+
+
+    private String saveImage(ImageData<BufferedImage> imageData, File outputDir, PathObject parent, String channel, String fileExtension){
+        return saveImage(imageData, outputDir, parent, channel, fileExtension, "");
     }
 
     /**
@@ -609,11 +642,10 @@ public class Spotiflow {
      * Executes the spotiflow training by
      * 1. Saving the images
      * 2. running spotiflow
-     * 3. moving the resulting model file to the desired directory
      *
      * @return a link to the model file, which can be displayed
      */
-    /*public File train() {
+    public void train() {
 
         try {
             if (this.trainingInputDir == null) {
@@ -624,25 +656,31 @@ public class Spotiflow {
                 logger.error("You need to set the output folder for training 'builder.setTrainingOutputDir()'");
                 throw new RuntimeException();
             }
+
+            // get the channels idx and name
+            try{
+                Integer[] channelsIntIdx = new Integer[channelsIdx.length];
+                for(int i = 0; i < channelsIdx.length; i++){
+                    channelsIntIdx[i] = (Integer.parseInt(channelsIdx[i]));
+                }
+                setupChannels(QPEx.getQuPath().getProject().getImageList().getFirst().readImageData(), channelsIntIdx);
+            }catch (Exception e){
+                setupChannels(QPEx.getQuPath().getProject().getImageList().getFirst().readImageData(), channelsIdx);
+            }
+
+            if(this.cleanTempDir) {
+                // Clear a previous run
+                cleanDirectory(this.tempDirectory);
+
+                // save images
+                saveTrainingImages();
+            }
+
             runTraining();
-
-//            this.modelFile = moveRenameAndReturnModelFile();
-//
-//            // Get the training results before overwriting the log with a new run
-//            this.trainingResults = parseTrainingResults();
-//
-//            // Get cellpose masks from the validation
-//            runCellposeOnValidationImages();
-//
-//            this.qcResults = runCellposeQC();
-//
-//            return modelFile;
-
         } catch (IOException | InterruptedException e) {
             logger.error("Error while running spotiflow training: {}", e.getMessage(), e);
         }
-        return null;
-    }*/
+    }
 
     /**
      * Configures and runs the {@link VirtualEnvironmentRunner} that will ultimately run spotiflow training
@@ -656,9 +694,34 @@ public class Spotiflow {
         // This is the list of commands after the 'python' call
         List<String> spotiflowArguments = new ArrayList<>();
 
-        spotiflowArguments.add(this.trainingInputDir.getAbsolutePath());
-        spotiflowArguments.add("--out-dir");
+        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add("--outdir");
         spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
+
+        spotiflowArguments.add("--num-epochs");
+        spotiflowArguments.add(String.valueOf(this.nEpochs));
+
+        if(this.doNotApplyDataAugmentation){
+            spotiflowArguments.add("--augment");
+            spotiflowArguments.add("False");
+        }
+
+        if(this.modelToFineTune != null && !this.modelToFineTune.isEmpty()){
+            spotiflowArguments.add("--finetune-from");
+            spotiflowArguments.add(this.modelToFineTune);
+        }
+
+        if(process3d){
+            spotiflowArguments.add("--is-3d");
+            spotiflowArguments.add("True");
+        }
+
+        spotiflowArguments.add("--device");
+        if(this.disableGPU){
+            spotiflowArguments.add("cpu");
+        } else {
+            spotiflowArguments.add("auto");
+        }
 
         this.parameters.forEach((parameter, value) -> {
             spotiflowArguments.add("--" + parameter);
@@ -675,4 +738,134 @@ public class Spotiflow {
         // Get the log
         this.theLog = veRunner.getProcessLog();
     }
+
+    /**
+     * Goes through the current project and saves the images and masks to the training and validation directories
+     */
+    public void saveTrainingImages() {
+
+        // Create the required directories if they don't exist
+        File trainDirectory = this.trainingInputDir;
+        trainDirectory.mkdirs();
+
+        File valDirectory = this.validationInputDir;
+        valDirectory.mkdirs();
+
+        Project<BufferedImage> project = QPEx.getQuPath().getProject();
+        project.getImageList().forEach(e -> {
+
+            ImageData<BufferedImage> imageData;
+            try {
+
+                imageData = e.readImageData();
+
+                String imageName = GeneralTools.stripExtension(imageData.getServer().getMetadata().getName());
+
+                Collection<PathObject> allAnnotations = imageData.getHierarchy().getAnnotationObjects();
+                // Get Squares for Training, Validation and Testing
+                List<PathObject> trainingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Training")).collect(Collectors.toList());
+                List<PathObject> validationAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Validation")).collect(Collectors.toList());
+
+                // TODO add test annotations too
+                //List<PathObject> testingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Test")).collect(Collectors.toList());
+
+                logger.info("Found {} Training objects and {} Validation objects in image {}", trainingAnnotations.size(), validationAnnotations.size(), imageName);
+
+                if (!trainingAnnotations.isEmpty() || !validationAnnotations.isEmpty()) {
+                    saveImageAndPointCoordinates(trainingAnnotations, imageName, imageData, trainDirectory);
+                    saveImageAndPointCoordinates(validationAnnotations, imageName, imageData, valDirectory);
+                }
+            } catch (Exception ex) {
+                logger.error(ex.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Saves the images from two servers (typically a server with the original data and another with labels)
+     * to the right directories as image/mask pairs, ready for cellpose
+     *
+     * @param annotations    the annotations in which to create RegionRequests to save
+     * @param imageName      the desired name of the images (the position of the request will be appended to make them unique)
+     * @param saveDirectory  the location where to save the pair of images
+     */
+    private void saveImageAndPointCoordinates(List<PathObject> annotations, String imageName, ImageData<BufferedImage> imageData,
+                                              File saveDirectory) {
+
+        if (annotations.isEmpty()) {
+            return;
+        }
+
+        // training only possible on ONE channel
+        String channel = this.channels.entrySet().iterator().next().getKey();
+
+        String fileExtension = this.TIFF_FILE_EXTENSION;
+        this.isOmeZarr = false; // ome-zarr not currently supported by spotiflow for training
+
+        annotations.forEach(a -> {
+            List<PathObject> gtPointsList;
+
+            if(process3d){
+                gtPointsList = imageData.getHierarchy().getAnnotationObjects().stream()
+                        .filter(e->e.getROI() instanceof PointsROI
+                                && a.getROI().contains(e.getROI().getCentroidX(), e.getROI().getCentroidY()))
+                        .collect(Collectors.toList());
+            }else{
+                gtPointsList = a.getChildObjects().stream()
+                        .filter(e->e.getROI() instanceof PointsROI)
+                        .collect(Collectors.toList());
+            }
+
+            if(!gtPointsList.isEmpty()) {
+                List<String> pointCoordinatesList = new ArrayList<>();
+                if(process3d) {
+                    pointCoordinatesList.add("z,y,x");
+                    for (PathObject point : gtPointsList) {
+                        PointsROI pointRoi = (PointsROI)(point.getROI());
+                        pointRoi.getAllPoints().forEach(e->pointCoordinatesList.add(String.format("%d,%f,%f", pointRoi.getZ(), e.getY(), e.getX())));
+                    }
+                }else{
+                    pointCoordinatesList.add("y,x");
+                    for (PathObject point : gtPointsList) {
+                        PointsROI pointRoi = (PointsROI)(point.getROI());
+                        pointRoi.getAllPoints().forEach(e->pointCoordinatesList.add(String.format("%f,%f",e.getY(), e.getX())));
+                    }
+                }
+
+                String name = saveImage(imageData, saveDirectory, a, channel, fileExtension, imageName);
+                File pointFile = new File(saveDirectory, name + ".csv");
+
+                try (BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(pointFile), StandardCharsets.UTF_8))) {
+                    buffer.write(String.join("\n", pointCoordinatesList));
+                }catch(Exception e){
+                    logger.error(e.getMessage());
+                    logger.error("Error when saving point coordinates");
+                }
+
+                logger.info("Saved image & point coordinates: \n\t{}\n\t{}", name + fileExtension, name + ".csv");
+            }
+        });
+    }
+
+    private void setupChannels(ImageData<BufferedImage> imageData, String[] channels) {
+        this.channels = new HashMap<>();
+        ImageServer<BufferedImage> currentServer = imageData.getServer();
+        for(String channel : channels){
+            for(int i = 0; i < currentServer.nChannels(); i++) {
+                String chName = currentServer.getChannel(i).getName();
+                if (channel.equals(chName)) {
+                    this.channels.put(chName, i);
+                    break;
+                }
+            }
+        }
+    }
+
+    public void setupChannels(ImageData<BufferedImage> imageData, Integer[] channels) {
+        this.channels = new HashMap<>();
+        for(int channel : channels){
+            this.channels.put(imageData.getServer().getChannel(channel).getName(), channel);
+        }
+    }
+
 }
