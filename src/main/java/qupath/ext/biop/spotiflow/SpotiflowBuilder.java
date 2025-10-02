@@ -27,7 +27,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Spot detection based on the following method:
@@ -68,6 +72,7 @@ public class SpotiflowBuilder {
     private boolean doNotApplyDataAugmentation = false;
     private double lr = -1;
     private boolean includeNegatives = false;
+    private List<String> pointClasses = new ArrayList<>();
 
     // parameters for both Training and Prediction
     private int nThreads = 12; // default from qupath ome-zarr writer
@@ -264,6 +269,18 @@ public class SpotiflowBuilder {
         return this;
     }
 
+    /**
+     * Specify the class(es) of point to use for the training.
+     * By default, if no class is specified, all points within the rectangle annotation
+     * will be used for the training.
+     *
+     * @param classes array of Path class names used to filter points
+     * @return this builder
+     */
+    public SpotiflowBuilder setPointClass(String... classes) {
+        this.pointClasses = Arrays.stream(classes).map(String::toLowerCase).collect(Collectors.toList());
+        return this;
+    }
 
     /* *************************
      *  For BOTH Prediction and Training
@@ -485,6 +502,7 @@ public class SpotiflowBuilder {
         spotiflow.nEpochs = this.nEpochs;
         spotiflow.lr = this.lr;
         spotiflow.includeNegatives = this.includeNegatives;
+        spotiflow.pointClasses = this.pointClasses;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {

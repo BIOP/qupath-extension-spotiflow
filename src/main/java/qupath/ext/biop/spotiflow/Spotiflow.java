@@ -110,6 +110,7 @@ public class Spotiflow {
     protected String modelToFineTune;
     protected double lr;
     protected boolean includeNegatives;
+    protected List<String> pointClasses;
 
     // constants
     private final String CSV_SEPARATOR = ",";
@@ -841,6 +842,9 @@ public class Spotiflow {
         String fileExtension = this.TIFF_FILE_EXTENSION;
         this.isOmeZarr = false; // ome-zarr not currently supported by spotiflow for training
 
+        // force resolving the hierarchy to get access to child objects
+        imageData.getHierarchy().resolveHierarchy();
+
         annotations.forEach(a -> {
             List<PathObject> gtPointsList;
 
@@ -853,6 +857,12 @@ public class Spotiflow {
             }else{
                 gtPointsList = a.getChildObjects().stream()
                         .filter(e->e.getROI() instanceof PointsROI)
+                        .collect(Collectors.toList());
+            }
+
+            if(!this.pointClasses.isEmpty()){
+                gtPointsList = gtPointsList.stream()
+                        .filter(e->e.getPathClass() != null && pointClasses.contains(e.getPathClass().getName().toLowerCase()))
                         .collect(Collectors.toList());
             }
 
