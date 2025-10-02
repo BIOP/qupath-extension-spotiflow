@@ -61,7 +61,6 @@ public class SpotiflowExtension implements QuPathExtension, GitHubProject {
         // Get a copy of the spotiflow options
         SpotiflowSetup options = SpotiflowSetup.getInstance();
 
-
         // Create the options we need
         StringProperty spotiflowPath = PathPrefs.createPersistentPreference("spotiflowPythonPath", "");
         StringProperty condaPath = PathPrefs.createPersistentPreference("condaPath", "");

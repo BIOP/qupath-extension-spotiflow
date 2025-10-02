@@ -427,6 +427,19 @@ public class Spotiflow {
     }
 
 
+    /**
+     * Save the image corresponding to the bounding box of the selected region.
+     * File format can be either ome.tiff or ome.zarr.
+     *
+     * @param imageData      the current imageData
+     * @param outputDir      the output directory where to save the image
+     * @param parent         the parent annotation from which to extract the bounding box
+     * @param channel        the current channel name
+     * @param fileExtension  the file format to use (ome.tiff or ome.zarr)
+     * @param prefixName     prefix to add to the final image name. Empty or null if no prefix
+     *
+     * @return the final image name without the extension
+     */
     private String saveImage(ImageData<BufferedImage> imageData, File outputDir, PathObject parent,
                              String channel, String fileExtension, String prefixName){
         RegionRequest region = RegionRequest.createInstance(imageData.getServerPath(), 1.0, parent.getROI());
@@ -495,7 +508,18 @@ public class Spotiflow {
         return name;
     }
 
-
+    /**
+     * Save the image corresponding to the bounding box of the selected region.
+     * File format can be either ome.tiff or ome.zarr.
+     *
+     * @param imageData      the current imageData
+     * @param outputDir      the output directory where to save the image
+     * @param parent         the parent annotation from which to extract the bounding box
+     * @param channel        the current channel name
+     * @param fileExtension  the file format to use (ome.tiff or ome.zarr)
+     *
+     * @return the final image name without the extension
+     */
     private String saveImage(ImageData<BufferedImage> imageData, File outputDir, PathObject parent, String channel, String fileExtension){
         return saveImage(imageData, outputDir, parent, channel, fileExtension, "");
     }
@@ -503,7 +527,7 @@ public class Spotiflow {
     /**
      * Get, from the output folder, the csv file corresponding to current analysis.
      *
-     * @param name
+     * @param name the name of the results file
      * @return
      */
     private File findResultFile(String name){
@@ -740,7 +764,8 @@ public class Spotiflow {
     }
 
     /**
-     * Goes through the current project and saves the images and masks to the training and validation directories
+     * Goes through the current project and saves the images and point coordinates
+     * to the training and validation directories
      */
     public void saveTrainingImages() {
 
@@ -756,20 +781,24 @@ public class Spotiflow {
 
             ImageData<BufferedImage> imageData;
             try {
-
                 imageData = e.readImageData();
 
                 String imageName = GeneralTools.stripExtension(imageData.getServer().getMetadata().getName());
 
                 Collection<PathObject> allAnnotations = imageData.getHierarchy().getAnnotationObjects();
                 // Get Squares for Training, Validation and Testing
-                List<PathObject> trainingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Training")).collect(Collectors.toList());
-                List<PathObject> validationAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Validation")).collect(Collectors.toList());
+                List<PathObject> trainingAnnotations = allAnnotations.stream()
+                        .filter(a -> a.getPathClass() == PathClass.getInstance("Training"))
+                        .collect(Collectors.toList());
+                List<PathObject> validationAnnotations = allAnnotations.stream()
+                        .filter(a -> a.getPathClass() == PathClass.getInstance("Validation"))
+                        .collect(Collectors.toList());
 
                 // TODO add test annotations too
                 //List<PathObject> testingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Test")).collect(Collectors.toList());
 
-                logger.info("Found {} Training objects and {} Validation objects in image {}", trainingAnnotations.size(), validationAnnotations.size(), imageName);
+                logger.info("Found {} Training objects and {} Validation objects in image {}",
+                        trainingAnnotations.size(), validationAnnotations.size(), imageName);
 
                 if (!trainingAnnotations.isEmpty() || !validationAnnotations.isEmpty()) {
                     saveImageAndPointCoordinates(trainingAnnotations, imageName, imageData, trainDirectory);
@@ -782,16 +811,15 @@ public class Spotiflow {
     }
 
     /**
-     * Saves the images from two servers (typically a server with the original data and another with labels)
-     * to the right directories as image/mask pairs, ready for cellpose
+     * Saves the images of the regions and the csv file containing points coordinates
      *
      * @param annotations    the annotations in which to create RegionRequests to save
-     * @param imageName      the desired name of the images (the position of the request will be appended to make them unique)
+     * @param imageName      the desired name of the images
+     * @param imageData      the current imageData
      * @param saveDirectory  the location where to save the pair of images
      */
-    private void saveImageAndPointCoordinates(List<PathObject> annotations, String imageName, ImageData<BufferedImage> imageData,
-                                              File saveDirectory) {
-
+    private void saveImageAndPointCoordinates(List<PathObject> annotations, String imageName,
+                                              ImageData<BufferedImage> imageData, File saveDirectory) {
         if (annotations.isEmpty()) {
             return;
         }
@@ -805,6 +833,7 @@ public class Spotiflow {
         annotations.forEach(a -> {
             List<PathObject> gtPointsList;
 
+            // filter annotations according to the current plan or to the full stack
             if(process3d){
                 gtPointsList = imageData.getHierarchy().getAnnotationObjects().stream()
                         .filter(e->e.getROI() instanceof PointsROI
@@ -816,6 +845,7 @@ public class Spotiflow {
                         .collect(Collectors.toList());
             }
 
+            // create the csv file with point coordinates (in 2D/3D)
             if(!gtPointsList.isEmpty()) {
                 List<String> pointCoordinatesList = new ArrayList<>();
                 if(process3d) {
@@ -832,9 +862,11 @@ public class Spotiflow {
                     }
                 }
 
+                // save the image
                 String name = saveImage(imageData, saveDirectory, a, channel, fileExtension, imageName);
-                File pointFile = new File(saveDirectory, name + ".csv");
 
+                // write the file
+                File pointFile = new File(saveDirectory, name + ".csv");
                 try (BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(pointFile), StandardCharsets.UTF_8))) {
                     buffer.write(String.join("\n", pointCoordinatesList));
                 }catch(Exception e){
@@ -847,6 +879,12 @@ public class Spotiflow {
         });
     }
 
+    /**
+     * Get the index of the channels from their name and fill a map<ChannelName, ChannelIndex>
+     *
+     * @param imageData  the current imageData
+     * @param channels   the channels name
+     */
     private void setupChannels(ImageData<BufferedImage> imageData, String[] channels) {
         this.channels = new HashMap<>();
         ImageServer<BufferedImage> currentServer = imageData.getServer();
@@ -861,11 +899,16 @@ public class Spotiflow {
         }
     }
 
+    /**
+     * Get the name of the channels from their index and fill a map<ChannelName, ChannelIndex>
+     *
+     * @param imageData  the current imageData
+     * @param channels   the channels indices
+     */
     public void setupChannels(ImageData<BufferedImage> imageData, Integer[] channels) {
         this.channels = new HashMap<>();
         for(int channel : channels){
             this.channels.put(imageData.getServer().getChannel(channel).getName(), channel);
         }
     }
-
 }

@@ -209,17 +209,33 @@ public class SpotiflowBuilder {
         return this;
     }
 
-
+    /**
+     * Set the name of the pre-trained model to fine-tune
+     *
+     * @param pretrainedModelName  name of the pre-trained model
+     * @return this builder
+     */
     public SpotiflowBuilder setModelToFineTune(String pretrainedModelName) {
         this.modelToFineTune = pretrainedModelName;
         return this;
     }
 
+    /**
+     * Force to not apply data augmentation on images during the training
+     *
+     * @return this builder
+     */
     public SpotiflowBuilder doNotApplyDataAugmentation() {
         this.doNotApplyDataAugmentation = true;
         return this;
     }
 
+    /**
+     * Set the number of epochs for the training
+     *
+     * @param nEpochs  number of epochs
+     * @return this builder
+     */
     public SpotiflowBuilder nEpochs(int nEpochs) {
         this.nEpochs = nEpochs;
         return this;
