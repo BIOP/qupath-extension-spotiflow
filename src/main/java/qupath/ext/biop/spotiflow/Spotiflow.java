@@ -760,7 +760,7 @@ public class Spotiflow {
                 spotiflowArguments.add(value);
             }
         });
-
+//        .setModelToFineTune("general")                       // OPTIONAL : Name of the pre-trained model to fine-tune
         veRunner.setArguments(spotiflowArguments);
 
         // Finally, we can run Spotiflow
@@ -792,10 +792,12 @@ public class Spotiflow {
                 Collection<PathObject> allAnnotations = imageData.getHierarchy().getAnnotationObjects();
                 // Get Squares for Training, Validation and Testing
                 List<PathObject> trainingAnnotations = allAnnotations.stream()
-                        .filter(a -> a.getPathClass() == PathClass.getInstance("Training"))
+                        .filter(a -> a.getPathClass() != null &&
+                                a.getPathClass().getName().equalsIgnoreCase("training"))
                         .collect(Collectors.toList());
                 List<PathObject> validationAnnotations = allAnnotations.stream()
-                        .filter(a -> a.getPathClass() == PathClass.getInstance("Validation"))
+                        .filter(a -> a.getPathClass() != null &&
+                                a.getPathClass().getName().equalsIgnoreCase("validation"))
                         .collect(Collectors.toList());
 
                 // TODO add test annotations too
