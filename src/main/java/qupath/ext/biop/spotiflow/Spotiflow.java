@@ -79,37 +79,39 @@ public class Spotiflow {
     // Parameters and parameter values that will be passed to the spotiflow command
     protected File modelDir;
     protected String pretrainedModelName;
-    protected File tempDirectory;
-    protected File trainingInputDir ;
-    protected File trainingOutputDir;
-    protected File validationInputDir;
+    protected String doSubpixel;
+    protected String pathClass;
+    protected double probabilityThreshold;
+    protected int minDistance;
+    protected boolean classChannelName;
+    protected boolean clearAllChildObjects;
+    protected boolean clearChildObjectsBelongingToCurrentChannels;
+    private File imageDirectory = null;
+
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
+    protected File tempDirectory;
+    protected Map<String, Integer> channels = new HashMap<>();
+    protected String[] channelsIdx;
     protected boolean cleanTempDir;
     protected boolean disableGPU;
     protected boolean process3d;
-    protected double probabilityThreshold;
-    protected int minDistance;
-    protected Map<String, Integer> channels = new HashMap<>();
-    protected String[] channelsIdx;
-    protected String doSubpixel;
-    protected String pathClass;
-    protected boolean classChannelName;
     protected int nThreads;
-    protected int nEpochs;
     protected boolean isOmeZarr;
-    protected boolean clearAllChildObjects;
-    protected boolean clearChildObjectsBelongingToCurrentChannels;
+
+    protected File trainingInputDir ;
+    protected File trainingOutputDir;
+    protected File validationInputDir;
+    protected int nEpochs;
     protected boolean doNotApplyDataAugmentation;
     protected String modelToFineTune;
+    protected double lr;
 
-    private List<String> theLog = new ArrayList<>();
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
     private final String ZARR_FILE_EXTENSION = ".ome.zarr";
     private final String TIFF_FILE_EXTENSION = ".ome.tiff";
     private final String ALL_SLICES = "allZ";
-    private File imageDirectory = null;
 
     /**
      * Create a builder to customize detection parameters.
@@ -740,6 +742,11 @@ public class Spotiflow {
             spotiflowArguments.add("True");
         }
 
+        if(lr > 0){
+            spotiflowArguments.add("--lr");
+            spotiflowArguments.add(String.valueOf(this.lr));
+        }
+
         spotiflowArguments.add("--device");
         if(this.disableGPU){
             spotiflowArguments.add("cpu");
@@ -758,9 +765,6 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
-
-        // Get the log
-        this.theLog = veRunner.getProcessLog();
     }
 
     /**

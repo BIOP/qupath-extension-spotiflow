@@ -66,6 +66,7 @@ public class SpotiflowBuilder {
     private int nEpochs = 200;
     private File trainingOutputDir = null;
     private boolean doNotApplyDataAugmentation = false;
+    private double lr = -1;
 
     // parameters for both Training and Prediction
     private int nThreads = 12; // default from qupath ome-zarr writer
@@ -238,6 +239,17 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder nEpochs(int nEpochs) {
         this.nEpochs = nEpochs;
+        return this;
+    }
+
+    /**
+     * Set the learning rate of the model for the training
+     *
+     * @param learningRate
+     * @return this builder
+     */
+    public SpotiflowBuilder setLearningRate(double learningRate) {
+        this.lr = learningRate;
         return this;
     }
 
@@ -460,6 +472,7 @@ public class SpotiflowBuilder {
         spotiflow.modelToFineTune = this.modelToFineTune;
         spotiflow.doNotApplyDataAugmentation = this.doNotApplyDataAugmentation;
         spotiflow.nEpochs = this.nEpochs;
+        spotiflow.lr = this.lr;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {

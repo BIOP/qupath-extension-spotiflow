@@ -33,6 +33,7 @@ def spotiflow = Spotiflow.builder()
 //        .doNotApplyDataAugmentation()                        // OPTIONAL : Do not Apply data augmentation during training
 //        .nEpochs(20)                                       // OPTIONAL : default 200
 //        .setModelToFineTune("general")                       // OPTIONAL : Name of the pre-trained model to fine-tune
+//        .setLearningRate(0.001)                              // OPTIONAL : Set learning rate for the model. Default 0.0003.
         .cleanTempDir()                                      // OPTIONAL : Clean all files from the tempDirectory
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .build()
