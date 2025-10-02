@@ -76,7 +76,7 @@ public class Spotiflow {
 
     private final static Logger logger = LoggerFactory.getLogger(Spotiflow.class);
 
-    // Parameters and parameter values that will be passed to the spotiflow command
+    // parameters for prediction only
     protected File modelDir;
     protected String pretrainedModelName;
     protected String doSubpixel;
@@ -88,6 +88,7 @@ public class Spotiflow {
     protected boolean clearChildObjectsBelongingToCurrentChannels;
     private File imageDirectory = null;
 
+    // parameters for both prediction and training
     protected SpotiflowSetup spotiflowSetup = SpotiflowSetup.getInstance();
     protected LinkedHashMap<String, String> parameters;
     protected File tempDirectory;
@@ -99,6 +100,7 @@ public class Spotiflow {
     protected int nThreads;
     protected boolean isOmeZarr;
 
+    // parameters for training only
     protected File trainingInputDir ;
     protected File trainingOutputDir;
     protected File validationInputDir;
@@ -106,7 +108,9 @@ public class Spotiflow {
     protected boolean doNotApplyDataAugmentation;
     protected String modelToFineTune;
     protected double lr;
+    protected boolean includeNegatives;
 
+    // constants
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
     private final String ZARR_FILE_EXTENSION = ".ome.zarr";
@@ -852,7 +856,7 @@ public class Spotiflow {
             }
 
             // create the csv file with point coordinates (in 2D/3D)
-            if(!gtPointsList.isEmpty()) {
+            if(!gtPointsList.isEmpty() || this.includeNegatives) {
                 List<String> pointCoordinatesList = new ArrayList<>();
                 if(process3d) {
                     pointCoordinatesList.add("z,y,x");

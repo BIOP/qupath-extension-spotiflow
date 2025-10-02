@@ -34,6 +34,7 @@ def spotiflow = Spotiflow.builder()
 //        .nEpochs(20)                                       // OPTIONAL : default 200
 //        .setModelToFineTune("general")                       // OPTIONAL : Name of the pre-trained model to fine-tune
 //        .setLearningRate(0.001)                              // OPTIONAL : Set learning rate for the model. Default 0.0003.
+//        .includeNegatives()                                  // OPTIONAL : Export rectangles even if they contain zero spots (CSV will then be empty). By default, empty rectangles are not exported.
         .cleanTempDir()                                      // OPTIONAL : Clean all files from the tempDirectory
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .build()
