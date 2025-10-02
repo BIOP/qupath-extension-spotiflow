@@ -1,24 +1,24 @@
 /**
- * Spotiflow Detection Template script
+ * Spotiflow Training Template script
  * @author Rémy Dornier
  *
- * This script is a template to detect objects using a Spotiflow model within QuPath.
- * After defining the builder, it will:
- * 1. Find all selected annotations in the current open ImageEntry
- * 2. Export the selected annotations to a temp folder that can be specified with tempDirectory()
- * 3. Run the spotiflow detction using the defined/default model name or path
- * 4. Create the desired objects (i.e. points) with the selected statistics (i.e. spotiflow outputs)
+ * This script is a template to train a new Spotiflow model within QuPath or to fine-tune a pre-trained model.
+ * 1. Draw RECTANGLES and assign them a class 'training' or 'validation' (case insensitive).
+ * 2. Inside those rectangle, annotate all points manually (you can assign them a class).
+ * 3. Save your job !
  *
- * NOTE: that this template does not contain all options, but should help get you started
- * See all options by calling spotiflow.helpPredict()
+ * After defining the builder below, it will:
+ * 1. Collect all rectangle annotations in the whole project (not only on the current open image)
+ *    Only rectangle annotations will be used : other shapes are discarded.
+ * 2. Save image patch and point coordinates in the temp folder that can be specified with tempDirectory()
+ * 3. Run the spotiflow training with the defined parameters
+ * 4. Saves the new model under the trainingOutpuDir
  *
- * NOTE 2: You should change pathObjects get all annotations if you want to run for the project. By default this script
- * will only run on the selected annotations.
+ * NOTE: this template does not contain all options, but should help get you started.
+ * See all options by calling spotiflow.helpTrain().
+ *
+ * NOTE: List of all pre-trained models : https://weigertlab.github.io/spotiflow/pretrained.html
  */
-
-// If you have trained a custom model, specify the model directory as a File in setModelDir()
-// If you want to use any other pre-trained models, specify its name in setPretrainedModelName()
-// -> List of all pre-trained models : https://weigertlab.github.io/spotiflow/pretrained.html
 
 Date start = new Date()
 
@@ -43,11 +43,10 @@ def spotiflow = Spotiflow.builder()
 // print the available arguments for training
 //spotiflow.helpTrain()
 
+// do the training
 spotiflow.train()
 
-// You could do some post-processing here, e.g. to remove objects that are too small, but it is usually better to
-// do this in a separate script so you can see the results before deleting anything.
-
+// print timing
 Date stop = new Date()
 long milliseconds = stop.getTime() - start.getTime()
 int seconds = (int) (milliseconds / 1000) % 60 ;

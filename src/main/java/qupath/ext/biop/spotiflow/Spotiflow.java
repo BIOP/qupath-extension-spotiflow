@@ -38,6 +38,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
@@ -796,18 +797,18 @@ public class Spotiflow {
                 Collection<PathObject> allAnnotations = imageData.getHierarchy().getAnnotationObjects();
                 // Get Squares for Training, Validation and Testing
                 List<PathObject> trainingAnnotations = allAnnotations.stream()
-                        .filter(a -> a.getPathClass() != null &&
+                        .filter(a -> a.getROI() instanceof RectangleROI && a.getPathClass() != null &&
                                 a.getPathClass().getName().equalsIgnoreCase("training"))
                         .collect(Collectors.toList());
                 List<PathObject> validationAnnotations = allAnnotations.stream()
-                        .filter(a -> a.getPathClass() != null &&
+                        .filter(a -> a.getROI() instanceof RectangleROI && a.getPathClass() != null &&
                                 a.getPathClass().getName().equalsIgnoreCase("validation"))
                         .collect(Collectors.toList());
 
                 // TODO add test annotations too
                 //List<PathObject> testingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Test")).collect(Collectors.toList());
 
-                logger.info("Found {} Training objects and {} Validation objects in image {}",
+                logger.info("Found {} Training rectangle objects and {} Validation rectangle objects in image {}",
                         trainingAnnotations.size(), validationAnnotations.size(), imageName);
 
                 if (!trainingAnnotations.isEmpty() || !validationAnnotations.isEmpty()) {
