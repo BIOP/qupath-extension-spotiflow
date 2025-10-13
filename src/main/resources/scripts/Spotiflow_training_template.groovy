@@ -27,9 +27,10 @@ def spotiflow = Spotiflow.builder()
 //        .setTrainingOutputDir(new File("path/to/output"))    // OPTIONAL : default is in 'qpProject/models' folder
 //        .disableGPU()                                        // OPTIONAL : Force using CPU ; default is automatic (let spotiflow decide)
 //        .process3d()                                         // OPTIONAL : if you have a zstack and you want to create a 3D model
+//        .zPositions(0,5)                                     // OPTIONAL : ONLY works wih process3d(). Select a sub-stack (start and end inclusive)
 //        .nThreads(12)                                        // OPTIONAL : How much you want to parallelize processing. Default 12
 //        .saveBuilder("MyFancyName")                          // OPTIONAL : To save builder parameters as JSON file
-        .channels("Channel 1")                     // REQUIRED : The channel to process. Only one channel is supported for training
+        .channels("Channel 1")                     // REQUIRED : The channel to process. Only ONE channel is supported for training
 //        .doNotApplyDataAugmentation()                        // OPTIONAL : Do not Apply data augmentation during training
 //        .nEpochs(20)                                       // OPTIONAL : default 200
 //        .setModelToFineTune("general")                       // OPTIONAL : Name of the pre-trained model to fine-tune

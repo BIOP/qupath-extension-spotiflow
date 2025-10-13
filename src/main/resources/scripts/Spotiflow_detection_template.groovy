@@ -30,6 +30,7 @@ def spotiflow = Spotiflow.builder()
 //        .setProbabilityThreshold(0.2)                        // OPTIONAL : Positive value
 //        .disableGPU()                                        // OPTIONAL : Force using CPU ; default is automatic (let spotiflow decide)
 //        .process3d()                                         // OPTIONAL : process the entire zstack
+//        .zPositions(0,5)                                     // OPTIONAL : ONLY works wih process3d(). Select a sub-stack (start and end inclusive)
 //        .doSubpixel(true)                                    // OPTIONAL : true to get subpixel resolution ; false to not. Default: let spotiflow choose
 //        .setClass("ClassName")                               // OPTIONAL : set the same class for all detections. Default: not assign any classes
         .setClassChannelName()                               // OPTIONAL : create a new class for each channel and assign detection to it. Default: not assign any classes

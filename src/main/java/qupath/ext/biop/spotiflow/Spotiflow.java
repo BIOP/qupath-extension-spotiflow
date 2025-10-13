@@ -111,13 +111,16 @@ public class Spotiflow {
     protected double lr;
     protected boolean includeNegatives;
     protected List<String> pointClasses;
+    protected int zStart;
+    protected int zEnd;
+    private int zCurrentEnd;
 
     // constants
     private final String CSV_SEPARATOR = ",";
     private final String NAME_SEPARATOR = "_";
+    private final String Z_SEPARATOR = "-";
     private final String ZARR_FILE_EXTENSION = ".ome.zarr";
     private final String TIFF_FILE_EXTENSION = ".ome.tiff";
-    private final String ALL_SLICES = "allZ";
 
     /**
      * Create a builder to customize detection parameters.
@@ -233,6 +236,17 @@ public class Spotiflow {
 
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
         int nZ = imageData.getServer().nZSlices();
+        if(process3d) {
+            zCurrentEnd = zEnd;
+            if (zCurrentEnd < 0) {
+                zCurrentEnd = nZ - 1;
+            }
+            if (zCurrentEnd < zStart) {
+                logger.warn("Z Positions are not valid: start: {} > end: {}. Take all slices instead.", zStart, zCurrentEnd);
+                zStart = 0;
+                zCurrentEnd = nZ - 1;
+            }
+        }
 
         // get the channels idx and name
         try{
@@ -319,7 +333,7 @@ public class Spotiflow {
                             (int) region.getBoundsWidth() + NAME_SEPARATOR +
                             (int) region.getBoundsHeight() + NAME_SEPARATOR;
 
-                    name += process3d ? ALL_SLICES : parent.getROI().getZ();
+                    name += "z" + (process3d ?  zStart + Z_SEPARATOR + zCurrentEnd : parent.getROI().getZ());
 
                     File optFile = new File(this.imageDirectory, name + fileExtension);
                     if (optFile.exists()) {
@@ -396,7 +410,7 @@ public class Spotiflow {
                         for (int d = 1; d < detectionList.size(); d++) {
                             String detection = detectionList.get(d);
                             String[] attributes = detection.split(CSV_SEPARATOR);
-                            double zf = process3d ? Double.parseDouble(attributes[0]) : parentPlane.getZ();
+                            double zf = process3d ? Double.parseDouble(attributes[0]) + zStart : parentPlane.getZ();
                             double yf = Double.parseDouble(attributes[pos]) + y0;
                             double xf = Double.parseDouble(attributes[pos+1]) + x0;
                             double intensity = Double.parseDouble(attributes[pos+2]);
@@ -463,7 +477,8 @@ public class Spotiflow {
                 region.getHeight() + NAME_SEPARATOR;
 
         int currentSlice = parent.getROI().getZ();
-        name += process3d ? ALL_SLICES : currentSlice;
+
+        name += "z" + (process3d ? zStart + Z_SEPARATOR + zCurrentEnd : currentSlice);
 
         String outputPath = new File(outputDir, name + fileExtension).getAbsolutePath();
 
@@ -485,6 +500,8 @@ public class Spotiflow {
             // process all slices
             if (!process3d)
                 builder.zSlices(currentSlice, currentSlice + 1);
+            else
+                builder.zSlices(zStart, zCurrentEnd + 1);
 
             // save ome-zarr
             try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
@@ -504,7 +521,7 @@ public class Spotiflow {
 
             // process all slices
             if(process3d)
-                builder.allZSlices();
+                builder.zSlices(zStart, zCurrentEnd + 1);
 
             // save ome-tiff
             try {
@@ -766,7 +783,7 @@ public class Spotiflow {
                 spotiflowArguments.add(value);
             }
         });
-//        .setModelToFineTune("general")                       // OPTIONAL : Name of the pre-trained model to fine-tune
+
         veRunner.setArguments(spotiflowArguments);
 
         // Finally, we can run Spotiflow
@@ -792,6 +809,18 @@ public class Spotiflow {
             ImageData<BufferedImage> imageData;
             try {
                 imageData = e.readImageData();
+                int nCurrentZ = imageData.getServer().nZSlices();
+                if(process3d) {
+                    zCurrentEnd = zEnd;
+                    if (zCurrentEnd < 0) {
+                        zCurrentEnd = nCurrentZ - 1;
+                    }
+                    if (zCurrentEnd < zStart) {
+                        logger.warn("Z Positions are not valid: start: {} > end: {}. Take all slices instead.", zStart, zCurrentEnd);
+                        zStart = 0;
+                        zCurrentEnd = nCurrentZ - 1;
+                    }
+                }
 
                 String imageName = GeneralTools.stripExtension(imageData.getServer().getMetadata().getName());
 
@@ -873,7 +902,7 @@ public class Spotiflow {
                     pointCoordinatesList.add("z,y,x");
                     for (PathObject point : gtPointsList) {
                         PointsROI pointRoi = (PointsROI)(point.getROI());
-                        pointRoi.getAllPoints().forEach(e->pointCoordinatesList.add(String.format("%d,%f,%f", pointRoi.getZ(), e.getY(), e.getX())));
+                        pointRoi.getAllPoints().forEach(e->pointCoordinatesList.add(String.format("%d,%f,%f", pointRoi.getZ() - zStart, e.getY(), e.getX())));
                     }
                 }else{
                     pointCoordinatesList.add("y,x");

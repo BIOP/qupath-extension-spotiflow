@@ -83,6 +83,8 @@ public class SpotiflowBuilder {
     private boolean isOmeZarr = false;
     private boolean process3d = false;
     private transient boolean saveBuilder;
+    private int zStart = -1;
+    private int zEnd = -1;
 
 
     /**
@@ -310,6 +312,20 @@ public class SpotiflowBuilder {
     }
 
     /**
+     * Set a substack for 3D training / prediction.
+     * ONLY works if {@link SpotiflowBuilder#process3d()} is called in the builder too.
+     *
+     * @param start first slice to include
+     * @param end last slice to include
+     * @return this builder
+     */
+    public SpotiflowBuilder zPositions(int start, int end) {
+        this.zStart = start;
+        this.zEnd = end;
+        return this;
+    }
+
+    /**
      * Allows to process all slices
      *
      * @param process3d  override process3d
@@ -503,6 +519,8 @@ public class SpotiflowBuilder {
         spotiflow.lr = this.lr;
         spotiflow.includeNegatives = this.includeNegatives;
         spotiflow.pointClasses = this.pointClasses;
+        spotiflow.zStart = Math.max(this.zStart, 0);
+        spotiflow.zEnd = this.zEnd;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {
