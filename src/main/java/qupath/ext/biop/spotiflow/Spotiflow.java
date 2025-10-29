@@ -230,7 +230,7 @@ public class Spotiflow {
             fileExtension = TIFF_FILE_EXTENSION;
         }
 
-        this.imageDirectory = new File(tempDirectory, imageName);
+        this.imageDirectory = new File(tempDirectory, imageName.replace(",", ""));
         this.imageDirectory = process3d ? new File(this.imageDirectory, "3D") : this.imageDirectory;
         if(!this.imageDirectory.exists()) {
             this.imageDirectory.mkdirs();
