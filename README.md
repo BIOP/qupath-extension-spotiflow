@@ -254,7 +254,7 @@ Here are some reasons we do it this way:
 Once you have your labeled Training and Validation rectangles with ground truth annotations, make sure you save your project! Then you can run the Spotiflow training template script in 
 `Extensions > Spotiflow > Spotiflow training script template`
 
-Or you can download [Spotiflow_training_template.groovy](src/main/resources/scripts/Spotiflow_training_script_template.groovy) from this repo and run it from the script editor.
+Or you can download [Spotiflow_training_template.groovy](src/main/resources/scripts/Spotiflow_training_template.groovy) from this repo and run it from the script editor.
 
 > [!IMPORTANT]
 > Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
