@@ -16,6 +16,7 @@
 
 package qupath.ext.biop.spotiflow;
 
+import ij.measure.ResultsTable;
 import javafx.collections.ObservableList;
 import org.apache.commons.io.FileUtils;
 import org.controlsfx.tools.Platform;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.biop.cmd.VirtualEnvironmentRunner;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.*;
@@ -45,6 +47,7 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -114,6 +117,7 @@ public class Spotiflow {
     protected int zStart;
     protected int zEnd;
     private int zCurrentEnd;
+    private ResultsTable qcResults;
 
     // constants
     private final String CSV_SEPARATOR = ",";
@@ -607,15 +611,12 @@ public class Spotiflow {
         // Set python executable in the environment
         String pythonPath = spotiflowSetup.getSpotiflowPythonPath();
 
-        switch (Platform.getCurrent()) {
-            case UNIX:
-            case OSX:
-                pythonPath = new File(pythonPath).getParent() + File.separator + command;
-                break;
-            case WINDOWS:
-            default:
-                pythonPath = new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
-                break;
+        if(command != null && !command.isEmpty()) {
+            pythonPath = switch (Platform.getCurrent()) {
+                case UNIX, OSX -> new File(pythonPath).getParent() + File.separator + command;
+                default ->
+                        new File(pythonPath).getParent() + File.separator + "Scripts" + File.separator + command + ".exe";
+            };
         }
 
         return new VirtualEnvironmentRunner(pythonPath, type, condaPath, this.getClass().getSimpleName());
@@ -694,8 +695,7 @@ public class Spotiflow {
      *
      * @return a link to the model file, which can be displayed
      */
-    public void train() {
-
+    public File train() {
         try {
             if (this.trainingInputDir == null) {
                 logger.error("You need to set the input folder for training 'builder.setTrainingInputDir()'");
@@ -726,8 +726,17 @@ public class Spotiflow {
             }
 
             runTraining();
+
+            // Get spotiflow prediction from the validation
+            runSpotiflowOnValidationImages();
+
+            // get QC metrics based on validation images (GT vs prediction)
+            this.qcResults = runSpotiflowQC();
+
+            return this.trainingOutputDir;
         } catch (IOException | InterruptedException e) {
             logger.error("Error while running spotiflow training: {}", e.getMessage(), e);
+            return null;
         }
     }
 
@@ -788,6 +797,100 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
+    }
+
+    /**
+     * Run spotiflow on test images (i.e. validation images) after the training of a new model.
+     * This step is necessary to be able to get some QC metrics.
+     */
+    private void runSpotiflowOnValidationImages(){
+        // copy validation images
+        this.imageDirectory = new File(this.tempDirectory.getAbsolutePath(), "test");
+        try {
+            logger.info("Copying validation images into prediction folder");
+            FileUtils.copyDirectory(this.validationInputDir, this.imageDirectory);
+        } catch (IOException e) {
+            logger.error("Failed to copy validation images in the temp image directory", e);
+        }
+
+        // run spotiflow with the new created model
+        try {
+            logger.info("Running Spotiflow on Validation image");
+            this.modelDir = this.trainingOutputDir;
+            runSpotiflow();
+        } catch (IOException | InterruptedException e) {
+            logger.error("Failed to Run Spotiflow on validation images", e);
+        }
+    }
+
+    /**
+     * Runs the python script "run-spotiflow-qc.py", which should be in the QuPath Extensions folder
+     *
+     * @return the results table with the QC metrics or null
+     * @throws IOException          if the python script is not found
+     * @throws InterruptedException if the running the QC fails for some reason
+     */
+    private ResultsTable runSpotiflowQC() throws IOException, InterruptedException {
+        File qcFolder = new File(QPEx.createDirectory(QPEx.PROJECT_BASE_DIR, "Spotiflow-QC"));
+        qcFolder.mkdirs();
+
+        logger.info("Running QC script on validation images");
+
+        // Let's check if the QC notebook is available in the 'extensions' folder
+        String spotiflowVersion = SpotiflowExtension.getExtensionVersion();
+        List<File> extensionDirList = QuPathGUI.getExtensionCatalogManager()
+                .getCatalogManagedInstalledJars()
+                .parallelStream()
+                .filter(e->e.toString().contains("qupath-extension-spotiflow-"+spotiflowVersion))
+                .map(Path::getParent)
+                .map(Path::toString)
+                .map(File::new)
+                .collect(Collectors.toList());
+
+        if(extensionDirList.isEmpty()){
+            logger.warn("Spotiflow extension not installed ; cannot find QC script");
+            return null;
+        }
+
+        String scriptName = "run-spotiflow-qc.py";
+        File qcPythonFile = new File(extensionDirList.getFirst(), scriptName);
+        if (!qcPythonFile.exists()) {
+            logger.warn("File {} was not found in {}.\nPlease download it from {}", qcPythonFile.getName(),
+                    extensionDirList.getFirst().getAbsolutePath(),
+                    new SpotiflowExtension().getRepository().getUrlString());
+            return null;
+        }
+
+        // Start the Virtual Environment Runner
+        VirtualEnvironmentRunner qcRunner = getVirtualEnvironmentRunner("");
+
+        // This is the list of commands after the 'python' call
+        List<String> spotiflowArguments = new ArrayList<>();
+
+        spotiflowArguments.add(qcPythonFile.getAbsolutePath());
+        spotiflowArguments.add("--ground-truth");
+        spotiflowArguments.add(this.validationInputDir.getAbsolutePath());
+
+        spotiflowArguments.add("--predictions");
+        spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
+
+        File qcFile = new File(qcFolder.getAbsolutePath() + File.separator + this.trainingOutputDir.getName() + "_spotiflow_QC_metrics.csv");
+        spotiflowArguments.add("--outfile");
+        spotiflowArguments.add(qcFile.getAbsolutePath());
+
+        qcRunner.setArguments(spotiflowArguments);
+        qcRunner.runCommand(true);
+
+        return ResultsTable.open(qcFile.getAbsolutePath());
+    }
+
+    /**
+     * Get the results table associated with the Quality Control run
+     *
+     * @return the results table with the QC metrics
+     */
+    public ResultsTable getQCResults() {
+        return this.qcResults;
     }
 
     /**
@@ -950,7 +1053,7 @@ public class Spotiflow {
     }
 
     /**
-     * Get the name of the channels from their index and fill a map<ChannelName, ChannelIndex>
+     * Get the name of the channels from their index and fill a map&lt;ChannelName, ChannelIndex&gt;
      *
      * @param imageData  the current imageData
      * @param channels   the channels indices

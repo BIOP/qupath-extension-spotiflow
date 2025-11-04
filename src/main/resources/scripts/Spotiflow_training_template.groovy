@@ -46,7 +46,23 @@ def spotiflow = Spotiflow.builder()
 //spotiflow.helpTrain()
 
 // do the training
-spotiflow.train()
+def resultModel = spotiflow.train()
+
+// Pick up results to see how the training was performed
+if(resultModel != null) {
+    println "Model Saved under: "
+    println resultModel.getAbsolutePath().toString().replace('\\', '/') // To make it easier to copy paste in windows
+}else{
+    println("Spotiflow training has failed ; no model was created")
+}
+
+// You can get a ResultsTable of the training.
+def results = spotiflow.getQCResults()
+if(results != null) {
+    results.show("QC Results")
+}else {
+    println("The QC script has failed ; no QC results to show")
+}
 
 // print timing
 Date stop = new Date()
