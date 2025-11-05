@@ -73,6 +73,7 @@ public class SpotiflowBuilder {
     private double lr = -1;
     private boolean includeNegatives = false;
     private List<String> pointClasses = new ArrayList<>();
+    private boolean cleanTrainingDir = false;
 
     // parameters for both Training and Prediction
     private int nThreads = 12; // default from qupath ome-zarr writer
@@ -374,12 +375,22 @@ public class SpotiflowBuilder {
     }
 
     /**
-     * clear all files in the tem
+     * clear all files in the temp directory
      *
      * @return this builder
      */
     public SpotiflowBuilder cleanTempDir() {
         this.cleanTempDir = true;
+        return this;
+    }
+
+    /**
+     * clear all files in the training directories
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder cleanTrainingDir() {
+        this.cleanTrainingDir = true;
         return this;
     }
 
@@ -475,6 +486,7 @@ public class SpotiflowBuilder {
 
         // Pick up info on project location and where the data will be stored for training and inference
         File quPathProjectDir = QP.getProject().getPath().getParent().toFile();
+        File trainingDir = new File(quPathProjectDir,"spotiflow-training");
 
         // Prepare temp directory in case it was not set
         if (this.tempDirectory == null) {
@@ -492,8 +504,9 @@ public class SpotiflowBuilder {
         if (this.trainingOutputDir == null) {
             this.trainingOutputDir = new File(quPathProjectDir, "models");
         }
-        spotiflow.trainingInputDir = new File(this.tempDirectory, "train");
-        spotiflow.validationInputDir = new File(this.tempDirectory, "val");
+        spotiflow.trainingInputDir = new File(trainingDir, "train");
+        spotiflow.validationInputDir = new File(trainingDir, "val");
+        spotiflow.testDir = new File(this.tempDirectory, "test");
         if(this.modelToFineTune != null && !this.modelToFineTune.isEmpty()) {
             spotiflow.trainingOutputDir = new File(this.trainingOutputDir, dtf.format(now) + "_"+this.modelToFineTune+"_fineTuned_model");
         }else{
@@ -502,6 +515,7 @@ public class SpotiflowBuilder {
         spotiflow.spotiflowSetup = this.spotiflowSetup;
         spotiflow.parameters = this.spotiflowParameters;
         spotiflow.cleanTempDir = this.cleanTempDir;
+        spotiflow.cleanTrainingDir = this.cleanTrainingDir;
         spotiflow.disableGPU = this.disableGPU;
         spotiflow.probabilityThreshold = this.probabilityThreshold;
         spotiflow.minDistance = this.minDistance;

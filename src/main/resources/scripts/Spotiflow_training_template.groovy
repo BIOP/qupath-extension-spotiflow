@@ -38,6 +38,7 @@ def spotiflow = Spotiflow.builder()
 //        .includeNegatives()                                  // OPTIONAL : Export rectangles even if they contain zero spots (CSV will then be empty). By default, empty rectangles are not exported.
 //        .setPointClass("class1")                             // OPTIONAL : Set the class(es) of points to filter within the parent annotation. By default, all points are selected.
         .cleanTempDir()                                      // OPTIONAL : Clean all files from the tempDirectory
+        .cleanTrainingDir()                                  // OPTIONAL : Clean all files from the training directory
 //        .addParameter("key","value")                         // OPTIONAL : Add more parameter, base on the available ones
         .build()
 

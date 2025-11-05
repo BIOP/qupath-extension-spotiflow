@@ -108,6 +108,7 @@ public class Spotiflow {
     protected File trainingInputDir ;
     protected File trainingOutputDir;
     protected File validationInputDir;
+    protected File testDir;
     protected int nEpochs;
     protected boolean doNotApplyDataAugmentation;
     protected String modelToFineTune;
@@ -116,6 +117,7 @@ public class Spotiflow {
     protected List<String> pointClasses;
     protected int zStart;
     protected int zEnd;
+    protected boolean cleanTrainingDir;
     private int zCurrentEnd;
     private ResultsTable qcResults;
 
@@ -717,15 +719,22 @@ public class Spotiflow {
                 setupChannels(QPEx.getQuPath().getProject().getImageList().getFirst().readImageData(), channelsIdx);
             }
 
-            if(this.cleanTempDir) {
-                // Clear a previous run
-                cleanDirectory(this.tempDirectory);
+            if(this.cleanTrainingDir){
+                // Clear a previous training
+                cleanDirectory(this.trainingInputDir);
+                cleanDirectory(this.validationInputDir);
+                cleanDirectory(this.testDir);
 
                 // save images
                 saveTrainingImages();
             }
 
             runTraining();
+
+            if(this.cleanTempDir) {
+                // Clear a previous run
+                cleanDirectory(this.tempDirectory);
+            }
 
             // Get spotiflow prediction from the validation
             runSpotiflowOnValidationImages();
@@ -752,7 +761,7 @@ public class Spotiflow {
         // This is the list of commands after the 'python' call
         List<String> spotiflowArguments = new ArrayList<>();
 
-        spotiflowArguments.add(this.tempDirectory.getAbsolutePath());
+        spotiflowArguments.add(this.trainingInputDir.getParentFile().getAbsolutePath());
         spotiflowArguments.add("--outdir");
         spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
 
@@ -805,10 +814,13 @@ public class Spotiflow {
      */
     private void runSpotiflowOnValidationImages(){
         // copy validation images
-        this.imageDirectory = new File(this.tempDirectory.getAbsolutePath(), "test");
+        this.imageDirectory = this.testDir;
         try {
-            logger.info("Copying validation images into prediction folder");
-            FileUtils.copyDirectory(this.validationInputDir, this.imageDirectory);
+            // only copy files if one or the other training folders has been cleaned
+            if(this.cleanTrainingDir || this.cleanTempDir) {
+                logger.info("Copying validation images into prediction folder");
+                FileUtils.copyDirectory(this.validationInputDir, this.imageDirectory);
+            }
         } catch (IOException e) {
             logger.error("Failed to copy validation images in the temp image directory", e);
         }
