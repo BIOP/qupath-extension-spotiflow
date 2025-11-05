@@ -729,6 +729,10 @@ public class Spotiflow {
                 saveTrainingImages();
             }
 
+            // create the model directory
+            this.modelDir = new File(this.trainingOutputDir, "model");
+            this.modelDir.mkdirs();
+
             runTraining();
 
             if(this.cleanTempDir) {
@@ -763,7 +767,7 @@ public class Spotiflow {
 
         spotiflowArguments.add(this.trainingInputDir.getParentFile().getAbsolutePath());
         spotiflowArguments.add("--outdir");
-        spotiflowArguments.add(this.trainingOutputDir.getAbsolutePath());
+        spotiflowArguments.add(this.modelDir.getAbsolutePath());
 
         spotiflowArguments.add("--num-epochs");
         spotiflowArguments.add(String.valueOf(this.nEpochs));
@@ -828,7 +832,6 @@ public class Spotiflow {
         // run spotiflow with the new created model
         try {
             logger.info("Running Spotiflow on Validation image");
-            this.modelDir = this.trainingOutputDir;
             runSpotiflow();
         } catch (IOException | InterruptedException e) {
             logger.error("Failed to Run Spotiflow on validation images", e);
@@ -843,7 +846,7 @@ public class Spotiflow {
      * @throws InterruptedException if the running the QC fails for some reason
      */
     private ResultsTable runSpotiflowQC() throws IOException, InterruptedException {
-        File qcFolder = new File(QPEx.createDirectory(QPEx.PROJECT_BASE_DIR, "Spotiflow-QC"));
+        File qcFolder = new File(this.trainingOutputDir, "QC");
         qcFolder.mkdirs();
 
         logger.info("Running QC script on validation images");
@@ -886,7 +889,7 @@ public class Spotiflow {
         spotiflowArguments.add("--predictions");
         spotiflowArguments.add(this.imageDirectory.getAbsolutePath());
 
-        File qcFile = new File(qcFolder.getAbsolutePath() + File.separator + this.trainingOutputDir.getName() + "_spotiflow_QC_metrics.csv");
+        File qcFile = new File(qcFolder.getAbsolutePath() + File.separator + "QC_metrics.csv");
         spotiflowArguments.add("--outfile");
         spotiflowArguments.add(qcFile.getAbsolutePath());
 
