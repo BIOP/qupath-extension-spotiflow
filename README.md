@@ -242,10 +242,6 @@ Here are some reasons we do it this way:
 3. Lock the rectangles (`right click > Annotations > Lock`). 
 4. Draw your ground truth annotations within all of the rectangles. <!--You can also select each rectangle and run the `Spotiflow detection script template` with the `.createAnnotations()` line
    not commented out in the builder (see *Prediction* instructions above) to use a pre-trained cellpose model as a start, but make sure you manually correct it to get proper ground truth!-->
-   
-> [!IMPORTANT]
-> Any ground truth annotations must have **no classes** assigned.
-
 5. Repeat this for as many images/regions of interest as you would like.
 
 > [!WARNING]
@@ -265,9 +261,9 @@ Or you can download [Spotiflow_training_template.groovy](src/main/resources/scri
 > or start with a custom model (see below). Please see the *Prediction* instructions above for information regarding the other builder parameters.
 -->
 
-The first thing the script will do is create a sub-folder in your project called `spotiflow-training` containing sub-folders `val` and `train`, followed by exporting the image(s)
-that will be processed by `spotiflow`. The `train` folder will contain images of your training rectangles and your annotations converted to masks. The `val` folder will contain the
-Validation data, which is also used by the `QC` script. If your Validation is not what you expect, you can check that the exported image(s) represent what you intended for `spotiflow` to train on.
+The first thing the script will do is create a sub-folder in your project called `spotiflow-training` containing sub-folders `train` and `val`, followed by exporting the image(s)
+that will be processed by `spotiflow`. The `train` folder will contain images of your training rectangles and a csv file including point coordinates. The `val` folder will contain the
+Validation data, which is also used by the `QC` script. 
 
 Once the script successfully completes training, you will have a `models` sub-folder within your Project folder, which will contain your custom model, as well as a `QC` sub-folder with the output
 of the QC script.
@@ -316,7 +312,7 @@ To fine-tune a pre-trained model, provide the name of this model to the `Spotifl
 ```
 def pretrainedModel = 'general'
 def spotiflow = Spotiflow.builder()
-                     .setModelToFineTune(general)  
+                     .setModelToFineTune(pretrainedModel)  
 ```
 
 
@@ -335,7 +331,7 @@ Basically, when you train using this extension:
 In order to be as reproducible and sure of your results as possible, especially when it comes to publishing, these are 
 our current guidelines:
 1. Use `saveBuilder()` which saves a JSON file of your SpotiflowBuilder, which can be reused with `SpotiflowBuilder(File builderFile)`. That way you will not lose the setting your did
-2. Save the `spotiflow-training`, `QC` and `models` folders at the end of your training somewhere. This will contain everything that was made during training.
+2. Save the `spotiflow-training` and `models` folders at the end of your training somewhere. This will contain everything that was made during training.
 3. Save the training script as well.
 
 
