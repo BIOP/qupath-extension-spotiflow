@@ -168,11 +168,11 @@ Or you can download the [Spotiflow_detection_template.groovy](src/main/resources
 
 > [!IMPORTANT]
 > Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
-> Some exmaples as provided in the [announcement forum post](https://forum.image.sc/t/qupath-extension-spotiflow-is-now-available/115646)
 
 ### Getting all available arguments
 
 All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-spotiflow/qupath/ext/biop/spotiflow/SpotiflowBuilder.html).
+Examples are provided in the [announcement forum post](https://forum.image.sc/t/qupath-extension-spotiflow-is-now-available/115646).
 You can pass additional options to `spotiflow` by adding `.addParameter()` before the `.build()` line. 
 
 To get the available additional arguments, call the help from the `spotiflow` object using `spotiflow.helpPredict()`
@@ -220,15 +220,14 @@ def pretrainedModel = 'hybiss'
 def spotiflow = Spotiflow.builder()
                      .setPretrainedModelName(pretrainedModel)  
 ```
-<!--
+
 ## Training custom models
 
 **Requirements**:
 A QuPath project with rectangles of class "Training" and "Validation" inside which the ground truth objects have been painted as annotations with no class.
-![Example Annotations for Training](files/cellpose-qupath-training-example.png)
 
 > [!IMPORTANT]
-> Training requires _dense_ annotations. This means you cannot just annotate a few objects per Training and Valudation rectanble. You must annotate **ALL relevant objects** within each of those regions!
+> Training requires _dense_ annotations. This means you cannot just annotate a few objects per Training and Validation rectangle. You must annotate **ALL relevant objects** within each of those regions!
 
 We typically create a standalone QuPath project for training only. This project will contain the training images along with the ground truth annotations drawn in QuPath.
 Here are some reasons we do it this way:
@@ -240,36 +239,37 @@ Here are some reasons we do it this way:
 
 1. In your QuPath project create at least **2** rectangle annotations.
 2. In the Annotations tab, add new classes name "Training" and "Validation" and assign your rectangles to each of them. You do not need an equal number of Training and Validation rectangles. 
-3. Lock the rectangles (right click > Annotations > Lock). 
-4. Draw your ground truth annotations within all of the rectangles. You can also select each rectangle and run the `Cellpose detection script template` with the `.createAnnotations()` line
-   not commented out in the builder (see *Prediction* instructions above) to use a pre-trained cellpose model as a start, but make sure you manually correct it to get proper ground truth!
-   
-> [!IMPORTANT]
-> Any ground truth annotations must have **no classes** assigned.
-
+3. Lock the rectangles (`right click > Annotations > Lock`). 
+4. Draw your ground truth annotations within all of the rectangles. <!--You can also select each rectangle and run the `Spotiflow detection script template` with the `.createAnnotations()` line
+   not commented out in the builder (see *Prediction* instructions above) to use a pre-trained cellpose model as a start, but make sure you manually correct it to get proper ground truth!-->
 5. Repeat this for as many images/regions of interest as you would like.
 
 > [!WARNING]
 > All images with Training or Validation annotations in the project will be used for the training.
 
-Once you have your labeled Training and Validation rectangles with ground truth annotations, make sure you save your project! Then you can run the Cellpose training template script in 
-`Extensions > Cellpose > Cellpose training script template`
+Once you have your labeled Training and Validation rectangles with ground truth annotations, make sure you save your project! Then you can run the Spotiflow training template script in 
+`Extensions > Spotiflow > Spotiflow training script template`
 
-Or you can download [Cellpose_training_template.groovy](src/main/resources/scripts/Cellpose_training_template.groovy) from this repo and run it from the script editor.
+Or you can download [Spotiflow_training_template.groovy](src/main/resources/scripts/Spotiflow_training_template.groovy) from this repo and run it from the script editor.
 
+> [!IMPORTANT]
+> Lines starting with `//` are commented out and are not used. To enable those parameters, delete the `//`. To disable a parameter, add `//` at the start of the line.
+
+<!--
 > [!NOTE]
 > In the line `def cellpose = Cellpose2D.builder("cyto")` you can choose to fine-tune a pre-trained model (e.g. cyto), train from scratch (enter "None"),
 > or start with a custom model (see below). Please see the *Prediction* instructions above for information regarding the other builder parameters.
+-->
 
-The first thing the script will do is create a sub-folder in your project called `cellpose-training` containing sub-folders `test` and `train`, followed by exporting the image(s)
-that will be processed by `cellpose`. The `train` folder will contain images of your training rectangles and your annotations converted to masks. The `test` folder will contain the
-Validation data, which is also used by the `QC` script. If your Validation is not what you expect, you can check that the exported image(s) represent what you intended for `cellpose` to train on.
+The first thing the script will do is create a sub-folder in your project called `spotiflow-training` containing sub-folders `train` and `val`, followed by exporting the image(s)
+that will be processed by `spotiflow`. The `train` folder will contain images of your training rectangles and a csv file including point coordinates. The `val` folder will contain the
+Validation data, which is also used by the `QC` script. 
 
 Once the script successfully completes training, you will have a `models` sub-folder within your Project folder, which will contain your custom model, as well as a `QC` sub-folder with the output
 of the QC script.
 
 Once you are happy with your training script, you should save the edited copy to your Project (or another scripts folder) for re-use!
-
+<!--
 ### Training a custom model
 To train using your custom model, you need to provide the path to the model to the `Cellpose2D.builder`. Just replace the name of the pre-trained model (e.g. `cyto`)
 with the path to your model, for example:
@@ -293,15 +293,36 @@ def cellpose = Cellpose2D.builder( pathModel )
 have not been transferred. 
 
 In case that this might be of use to you, please [open an issue](https://github.com/BIOP/qupath-extension-cellpose/issues). 
+-->
+
+### Getting all available training options
+
+All builder options that are implemented are documented [in the Javadoc](https://biop.github.io/qupath-extension-spotiflow/qupath/ext/biop/spotiflow/SpotiflowBuilder.html).
+Examples are provided in the [announcement forum post](https://forum.image.sc/t/qupath-extension-spotiflow-is-now-available/115646).
+You can pass additional options to `spotiflow` by adding `.addParameter()` before the `.build()` line. 
+
+To get the available additional arguments, call the help from the `spotiflow` object using `spotiflow.helpTrain()`
+```
+def spotiflow = Spotiflow.builder()...build() 
+spotiflow.helpTrain() 
+```
+
+### Fine-tuning a pre-trained models
+To fine-tune a pre-trained model, provide the name of this model to the `Spotiflow.builder` using `.setModelToFineTune()`
+```
+def pretrainedModel = 'general'
+def spotiflow = Spotiflow.builder()
+                     .setModelToFineTune(pretrainedModel)  
+```
+
 
 ### Training validation
-You can find a [run-cellpose-qc.py](QC/run-cellpose-qc.py) python script in the `QC` folder of this repository. This is 
-an adaptation of the Quality Control part of a [ZeroCostDL4Mic Notebook that was made for cellpose](https://colab.research.google.com/github/HenriquesLab/ZeroCostDL4Mic/blob/master/Colab_notebooks/Beta%20notebooks/Cellpose_2D_ZeroCostDL4Mic.ipynb).
+You can find a [run-spotiflow-qc.py](QC/run-spotiflow-qc.py) python script in the `QC` folder of this repository. 
 
 Basically, when you train using this extension:
 1. It will first train your model as expected
-2. It will then run your newly trained cellpose model on your "Validation" images
-3. At the end, it will run the [run-cellpose-qc.py](QC/run-cellpose-qc.py) python script to output validation metrics.
+2. It will then run your newly trained spotiflow model on your "Validation" images
+3. At the end, it will run the [run-spotiflow-qc.py](QC/run-spotiflow-qc.py) python script to output validation metrics.
 4. The validation metrics will be saved into a folder called `QC` in your QuPath Project
 
 
@@ -309,12 +330,12 @@ Basically, when you train using this extension:
 
 In order to be as reproducible and sure of your results as possible, especially when it comes to publishing, these are 
 our current guidelines:
-1. Use `saveBuilder()` which saves a JSON file of your CellposeBuilder, which can be reused with `CellposeBuilder(File builderFile)`. That way you will not lose the setting your did
-2. Save the `cellpose-training`, `QC` and `models` folders at the end of your training somewhere. This will contain everything that was made during training.
+1. Use `saveBuilder()` which saves a JSON file of your SpotiflowBuilder, which can be reused with `SpotiflowBuilder(File builderFile)`. That way you will not lose the setting your did
+2. Save the `spotiflow-training` and `models` folders at the end of your training somewhere. This will contain everything that was made during training.
 3. Save the training script as well.
 
 
--->
+
 # Building
 
 You can build the QuPath Spotiflow extension from source with
