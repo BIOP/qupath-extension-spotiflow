@@ -20,6 +20,9 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
 import java.io.IOException;
@@ -33,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -76,6 +80,7 @@ public class SpotiflowBuilder {
     private boolean includeNegatives = false;
     private List<String> pointClasses = new ArrayList<>();
     private boolean cleanTrainingDir = false;
+    private Function<ROI, PathObject> creatorFun;
 
     // parameters for both Training and Prediction
     private int nThreads = 12; // default from qupath ome-zarr writer
@@ -135,6 +140,7 @@ public class SpotiflowBuilder {
             this.pointClasses = builder.pointClasses;
             this.zStart = builder.zStart;
             this.zEnd = builder.zEnd;
+            this.creatorFun = builder.creatorFun;
             logger.info("Builder parameters loaded from {}", builderFile);
         } catch (FileNotFoundException e) {
             logger.error("Could not load builder from {}", builderFile.getAbsolutePath(), e);
@@ -327,6 +333,16 @@ public class SpotiflowBuilder {
      */
     public SpotiflowBuilder setPointClass(String... classes) {
         this.pointClasses = Arrays.stream(classes).map(String::toLowerCase).collect(Collectors.toList());
+        return this;
+    }
+
+    /**
+     * Create annotations rather than detections (the default).
+     *
+     * @return this builder
+     */
+    public SpotiflowBuilder createAnnotations() {
+        this.creatorFun = r -> PathObjects.createAnnotationObject(r);
         return this;
     }
 
@@ -580,6 +596,10 @@ public class SpotiflowBuilder {
         spotiflow.pointClasses = this.pointClasses;
         spotiflow.zStart = Math.max(this.zStart, 0);
         spotiflow.zEnd = this.zEnd;
+        if(this.creatorFun == null){
+            this.creatorFun = r -> PathObjects.createDetectionObject(r);
+        }
+        spotiflow.creatorFun = this.creatorFun;
 
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {

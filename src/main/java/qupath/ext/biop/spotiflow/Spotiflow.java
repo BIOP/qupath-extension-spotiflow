@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -118,6 +119,7 @@ public class Spotiflow {
     protected int zStart;
     protected int zEnd;
     protected boolean cleanTrainingDir;
+    protected Function<ROI, PathObject> creatorFun;
     private int zCurrentEnd;
     private ResultsTable qcResults;
 
@@ -152,7 +154,7 @@ public class Spotiflow {
                                      double y, double z, int c, int t, double intensity, double probability) {
         ImagePlane imagePlane = ImagePlane.getPlaneWithChannel(c, (int) z, t);
         ROI pointROI = ROIs.createPointsROI(x, y, imagePlane);
-        PathObject pointObject = PathObjects.createDetectionObject(pointROI);
+        PathObject pointObject = this.creatorFun.apply(pointROI);
 
         if(channelClass == null || channelClass.equals("null"))
             pointObject.resetPathClass();
@@ -970,6 +972,10 @@ public class Spotiflow {
                         trainingAnnotations.size(), validationAnnotations.size(), imageName);
 
                 if (!trainingAnnotations.isEmpty() || !validationAnnotations.isEmpty()) {
+                    // force resolving the hierarchy to get access to child objects
+                    imageData.getHierarchy().resolveHierarchy();
+
+                    // saving images & points
                     saveImageAndPointCoordinates(trainingAnnotations, imageName, imageData, trainDirectory);
                     saveImageAndPointCoordinates(validationAnnotations, imageName, imageData, valDirectory);
                 }
@@ -998,9 +1004,6 @@ public class Spotiflow {
 
         String fileExtension = this.TIFF_FILE_EXTENSION;
         this.isOmeZarr = false; // ome-zarr not currently supported by spotiflow for training
-
-        // force resolving the hierarchy to get access to child objects
-        imageData.getHierarchy().resolveHierarchy();
 
         annotations.forEach(a -> {
             List<PathObject> gtPointsList;
