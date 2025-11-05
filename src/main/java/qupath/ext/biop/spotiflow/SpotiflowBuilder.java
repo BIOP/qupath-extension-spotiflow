@@ -22,9 +22,11 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
 import qupath.lib.scripting.QP;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -51,24 +53,24 @@ public class SpotiflowBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(SpotiflowBuilder.class);
     private final transient SpotiflowSetup spotiflowSetup;
-    private final LinkedHashMap<String, String> spotiflowParameters = new LinkedHashMap<>();
+    private LinkedHashMap<String, String> spotiflowParameters = new LinkedHashMap<>();
 
     // parameters for prediction only
-    private File modelDir = null;
+    private transient File modelDir = null;
     private String pretrainedModelName = null;
     private String doSubpixel = "None";
     private double probabilityThreshold = -1;
     private int minDistance = -1;
     private boolean classChannelName = false;
     private String pathClass = null;
-    private transient String builderName;
+    private String builderName;
     private boolean clearChildObjectsBelongingToCurrentChannels = false;
     private boolean clearAllChildObjects = false;
 
     // parameters for Training only
     private String modelToFineTune = null;
-    private int nEpochs = 200;
-    private File trainingOutputDir = null;
+    private Integer nEpochs = 200;
+    private transient File trainingOutputDir = null;
     private boolean doNotApplyDataAugmentation = false;
     private double lr = -1;
     private boolean includeNegatives = false;
@@ -77,13 +79,13 @@ public class SpotiflowBuilder {
 
     // parameters for both Training and Prediction
     private int nThreads = 12; // default from qupath ome-zarr writer
-    private File tempDirectory = null;
+    private transient File tempDirectory = null;
     private String[] channels = null;
     private boolean cleanTempDir = false;
     private boolean disableGPU = false;
     private boolean isOmeZarr = false;
     private boolean process3d = false;
-    private transient boolean saveBuilder;
+    private boolean saveBuilder = false;
     private int zStart = -1;
     private int zEnd = -1;
 
@@ -94,6 +96,49 @@ public class SpotiflowBuilder {
     protected SpotiflowBuilder() {
         // Need to know setup options in order to guide the user in case of version inconsistency
         this.spotiflowSetup = SpotiflowSetup.getInstance();
+    }
+
+    /**
+     * can create a spotiflow builder from a serialized JSON version of this builder.
+     *
+     * @param builderFile the path to a serialized JSON builder made with {@link #saveBuilder(String)}
+     */
+    protected SpotiflowBuilder(File builderFile) {
+
+        // Need to know setup options, which are transient
+        this.spotiflowSetup = SpotiflowSetup.getInstance();
+
+        Gson gson = GsonTools.getInstance();
+        try {
+            SpotiflowBuilder builder = gson.fromJson(new FileReader(builderFile), SpotiflowBuilder.class);
+            this.nThreads = builder.nThreads;
+            this.pretrainedModelName = builder.pretrainedModelName;
+            this.spotiflowParameters = builder.spotiflowParameters;
+            this.cleanTempDir = builder.cleanTempDir;
+            this.cleanTrainingDir = builder.cleanTrainingDir;
+            this.disableGPU = builder.disableGPU;
+            this.probabilityThreshold = builder.probabilityThreshold;
+            this.minDistance = builder.minDistance;
+            this.channels = builder.channels;
+            this.process3d = builder.process3d;
+            this.doSubpixel = builder.doSubpixel;
+            this.pathClass = builder.pathClass;
+            this.isOmeZarr = builder.isOmeZarr;
+            this.classChannelName = builder.classChannelName;
+            this.clearAllChildObjects = builder.clearAllChildObjects;
+            this.clearChildObjectsBelongingToCurrentChannels = builder.clearChildObjectsBelongingToCurrentChannels;
+            this.modelToFineTune = builder.modelToFineTune;
+            this.doNotApplyDataAugmentation = builder.doNotApplyDataAugmentation;
+            this.nEpochs = builder.nEpochs;
+            this.lr = builder.lr;
+            this.includeNegatives = builder.includeNegatives;
+            this.pointClasses = builder.pointClasses;
+            this.zStart = builder.zStart;
+            this.zEnd = builder.zEnd;
+            logger.info("Builder parameters loaded from {}", builderFile);
+        } catch (FileNotFoundException e) {
+            logger.error("Could not load builder from {}", builderFile.getAbsolutePath(), e);
+        }
     }
 
 
@@ -539,7 +584,7 @@ public class SpotiflowBuilder {
         // If we would like to save the builder we can do it here thanks to Serialization and lots of magic by Pete
         if (this.saveBuilder) {
             Gson gson = GsonTools.getInstance(true);
-            File savePath = new File(QP.PROJECT_BASE_DIR, this.builderName + "_" + dtf.format(now) + ".json");
+            File savePath = new File(quPathProjectDir, this.builderName + "_" + dtf.format(now) + ".json");
 
             try {
                 FileWriter fw = new FileWriter(savePath);

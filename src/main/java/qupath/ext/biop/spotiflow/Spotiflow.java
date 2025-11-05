@@ -137,6 +137,16 @@ public class Spotiflow {
         return new SpotiflowBuilder();
     }
 
+    /**
+     * Load a previously serialized builder.
+     * See {@link SpotiflowBuilder#SpotiflowBuilder(File)} and {@link SpotiflowBuilder#saveBuilder(String)}
+     *
+     * @param builderPath path to the builder JSON file.
+     * @return this builder
+     */
+    public static SpotiflowBuilder builder(File builderPath) {
+        return new SpotiflowBuilder(builderPath);
+    }
 
     private PathObject objectToPoint(String channelClass, PixelCalibration cal, double x,
                                      double y, double z, int c, int t, double intensity, double probability) {
