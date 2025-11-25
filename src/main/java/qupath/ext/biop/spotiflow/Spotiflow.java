@@ -822,6 +822,9 @@ public class Spotiflow {
 
         // Finally, we can run Spotiflow
         veRunner.runCommand(true);
+
+        // Add a waitFor() here to fix MAC Mx chip killing thread issue (#15)
+        veRunner.getProcess().waitFor();
     }
 
     /**
@@ -907,6 +910,9 @@ public class Spotiflow {
 
         qcRunner.setArguments(spotiflowArguments);
         qcRunner.runCommand(true);
+
+        // Add a waitFor() here to fix MAC Mx chip killing thread issue (#15)
+        qcRunner.getProcess().waitFor();
 
         return ResultsTable.open(qcFile.getAbsolutePath());
     }
