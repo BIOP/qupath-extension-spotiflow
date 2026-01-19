@@ -248,7 +248,7 @@ public class Spotiflow {
      * @param imageData the image data containing the object
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
-    private void detectObjectsImpl(ImageData<BufferedImage> imageData, String imageName, Collection<? extends PathObject> parents) {
+    private void detectObjectsImpl(ImageData<BufferedImage> imageData, String entryID, Collection<? extends PathObject> parents) {
 
         Objects.requireNonNull(parents);
 
@@ -287,7 +287,7 @@ public class Spotiflow {
             fileExtension = TIFF_FILE_EXTENSION;
         }
 
-        this.imageDirectory = new File(tempDirectory, imageName.replace(",", ""));
+        this.imageDirectory = new File(tempDirectory, entryID.replace(",", ""));
         this.imageDirectory = process3d ? new File(this.imageDirectory, "3D") : this.imageDirectory;
         if(!this.imageDirectory.exists()) {
             this.imageDirectory.mkdirs();
