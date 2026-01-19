@@ -236,21 +236,24 @@ public class Spotiflow {
      * Detect cells within one or more parent objects, firing update events upon completion.
      *
      * @param imageData the image data containing the object
+     * @param entryID the unique QuPath ID of the current image
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
-    public void detectObjects(ImageData<BufferedImage> imageData, String imageName, Collection<? extends PathObject> parents) {
-        runInPool(() -> detectObjectsImpl(imageData, imageName, parents));
+    public void detectObjects(ImageData<BufferedImage> imageData, String entryID, Collection<? extends PathObject> parents) {
+        runInPool(() -> detectObjectsImpl(imageData, entryID, parents));
     }
 
     /**
      * Detect cells within one or more parent objects, firing update events upon completion.
      *
      * @param imageData the image data containing the object
+     * @param entryID the unique QuPath ID of the current image
      * @param parents   the parent objects; existing child objects will be removed, and replaced by the detected cells
      */
     private void detectObjectsImpl(ImageData<BufferedImage> imageData, String entryID, Collection<? extends PathObject> parents) {
 
         Objects.requireNonNull(parents);
+        logger.info("Working on image {} : ID {}", imageData.getServer().getMetadata().getName(), entryID);
 
         PixelCalibration cal = imageData.getServer().getPixelCalibration();
         int nZ = imageData.getServer().nZSlices();
@@ -287,7 +290,7 @@ public class Spotiflow {
             fileExtension = TIFF_FILE_EXTENSION;
         }
 
-        this.imageDirectory = new File(tempDirectory, entryID.replace(",", ""));
+        this.imageDirectory = new File(tempDirectory, entryID);
         this.imageDirectory = process3d ? new File(this.imageDirectory, "3D") : this.imageDirectory;
         if(!this.imageDirectory.exists()) {
             this.imageDirectory.mkdirs();
@@ -508,7 +511,7 @@ public class Spotiflow {
 
         if(isOmeZarr) {
             // write the ome.zarr
-            logger.info("Saving image(s) into the temporary folder as OME-Zarr");
+            logger.info("Saving image(s) into the temporary folder as OME-Zarr : {}", outputPath);
             OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
             builder.parallelize(nThreads)
                     .tileSize(512)
@@ -529,7 +532,7 @@ public class Spotiflow {
             }
         }else{
             // write the ome.tiff
-            logger.info("Saving image(s) into the temporary folder as OME-Tiff");
+            logger.info("Saving image(s) into the temporary folder as OME-Tiff : {}", outputPath);
             OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(imageData.getServer());
             builder.parallelize()
                     .tileSize(512)
@@ -958,6 +961,7 @@ public class Spotiflow {
                     }
                 }
 
+                String entryID = e.getID();
                 String imageName = GeneralTools.stripExtension(imageData.getServer().getMetadata().getName());
 
                 Collection<PathObject> allAnnotations = imageData.getHierarchy().getAnnotationObjects();
@@ -974,16 +978,16 @@ public class Spotiflow {
                 // TODO add test annotations too
                 //List<PathObject> testingAnnotations = allAnnotations.stream().filter(a -> a.getPathClass() == PathClass.getInstance("Test")).collect(Collectors.toList());
 
-                logger.info("Found {} Training rectangle objects and {} Validation rectangle objects in image {}",
-                        trainingAnnotations.size(), validationAnnotations.size(), imageName);
+                logger.info("Found {} Training rectangle objects and {} Validation rectangle objects in image {} : ID {}",
+                        trainingAnnotations.size(), validationAnnotations.size(), imageName, entryID);
 
                 if (!trainingAnnotations.isEmpty() || !validationAnnotations.isEmpty()) {
                     // force resolving the hierarchy to get access to child objects
                     imageData.getHierarchy().resolveHierarchy();
 
                     // saving images & points
-                    saveImageAndPointCoordinates(trainingAnnotations, imageName, imageData, trainDirectory);
-                    saveImageAndPointCoordinates(validationAnnotations, imageName, imageData, valDirectory);
+                    saveImageAndPointCoordinates(trainingAnnotations, entryID, imageData, trainDirectory);
+                    saveImageAndPointCoordinates(validationAnnotations, entryID, imageData, valDirectory);
                 }
             } catch (Exception ex) {
                 logger.error(ex.getMessage());
