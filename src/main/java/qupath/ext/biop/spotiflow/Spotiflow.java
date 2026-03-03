@@ -525,7 +525,8 @@ public class Spotiflow {
                 builder.zSlices(zStart, zCurrentEnd + 1);
 
             // save ome-zarr
-            try (OMEZarrWriter omeZarrWriter = builder.build(outputPath)) {
+            try {
+                OMEZarrWriter omeZarrWriter = builder.build(outputPath);
                 omeZarrWriter.writeImage();
             } catch (Exception e) {
                 logger.error("Error during writing OME-Zarr file", e);
