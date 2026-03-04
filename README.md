@@ -93,7 +93,7 @@ On macOS or Linux:
 where `{HOME}` will be the location of your home directory, typically `/Users/user-name/` on macOS or `/home/user-name/` on Linux.
 
 ## Step 2: Install the QuPath Spotiflow extension
-### On QuPath 0.6.x
+### On QuPath 0.7.x / 0.6.x
 
 - Install and setup the [qupath-biop-catalog](https://github.com/BIOP/qupath-biop-catalog) first.
 - Open the Extension Manager
