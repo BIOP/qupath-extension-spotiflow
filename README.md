@@ -8,7 +8,7 @@ Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://doi.org/10.
 This repo adds some support to use [Spotiflow](https://github.com/weigertlab/spotiflow) within QuPath through a Python virtual environment.
 
 > [!WARNING]
-> This extension is developed for QuPath 0.6.x
+> This extension is developed for QuPath 0.6.x and higher
 
 
 # Citing
