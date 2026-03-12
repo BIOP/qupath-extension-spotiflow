@@ -8,7 +8,7 @@ Zenodo DOI: [![DOI](https://zenodo.org/badge/417468733.svg)](https://doi.org/10.
 This repo adds some support to use [Spotiflow](https://github.com/weigertlab/spotiflow) within QuPath through a Python virtual environment.
 
 > [!WARNING]
-> This extension is developed for QuPath 0.6.x
+> This extension is developed for QuPath 0.6.x and higher
 
 
 # Citing
@@ -93,7 +93,7 @@ On macOS or Linux:
 where `{HOME}` will be the location of your home directory, typically `/Users/user-name/` on macOS or `/home/user-name/` on Linux.
 
 ## Step 2: Install the QuPath Spotiflow extension
-### On QuPath 0.6.x
+### On QuPath 0.7.x / 0.6.x
 
 - Install and setup the [qupath-biop-catalog](https://github.com/BIOP/qupath-biop-catalog) first.
 - Open the Extension Manager
