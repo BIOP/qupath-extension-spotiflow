@@ -528,25 +528,6 @@ public class Spotiflow {
             try {
                 OMEZarrWriter omeZarrWriter = builder.build(outputPath);
                 omeZarrWriter.writeImage();
-
-                // by-pass limitation of spotiflow which doesn't handle properly ome-zarr
-                // rename the folder '0' to 's0'
-                // TODO: Remove this when spotiflow gets a correct way to read ome-zarr
-                File zarrFolder = new File(outputPath);
-                File[] files = zarrFolder.listFiles();
-                if(files != null){
-                    for(File zarrElement: files){
-                        if(zarrElement.isDirectory()){
-                            try{
-                                Integer.parseInt(zarrElement.getName());
-                                File newFileName = new File(zarrElement.getParentFile().getAbsolutePath(),"s" + zarrElement.getName());
-                                zarrElement.renameTo(newFileName);
-                            }catch (Exception e){
-
-                            }
-                        }
-                    }
-                }
             } catch (Exception e) {
                 logger.error("Error during writing OME-Zarr file", e);
             }
@@ -679,7 +660,7 @@ public class Spotiflow {
 
         if(this.isOmeZarr) {
             spotiflowArguments.add("--zarr-component");
-            spotiflowArguments.add("s0");
+            spotiflowArguments.add("0");
         }
         if(this.pretrainedModelName != null) {
             spotiflowArguments.add("--pretrained-model");
