@@ -503,20 +503,29 @@ public class Spotiflow {
 
         String outputPath = new File(outputDir, name + fileExtension).getAbsolutePath();
 
-        // create a new ImageServer containing only the channel of interest
-        ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
-                .extractChannels(channels.get(channel))
-                .build();
-        ImageData<BufferedImage> selectedData = new ImageData<>(selectedChannels);
-
         if(isOmeZarr) {
+            // create a new ImageServer containing only the channel of interest
+            ImageServer<BufferedImage> selectedChannels = new TransformedServerBuilder(imageData.getServer())
+                    .extractChannels(channels.get(channel))
+                    .build();
+
+            // get downsamples
+            List<Double> downsampleList = new ArrayList<>();
+            int tileSize = 512;
+            double nextDownsample = 1.0;
+            do {
+                downsampleList.add(nextDownsample);
+                nextDownsample *= 2;
+            }while ((int)(selectedChannels.getWidth() / nextDownsample) > tileSize && (int)(selectedChannels.getHeight() / nextDownsample) > tileSize);
+            double[] downsamples = downsampleList.stream().mapToDouble(d -> d).toArray();
+
             // write the ome.zarr
             logger.info("Saving image(s) into the temporary folder as OME-Zarr : {}", outputPath);
-            OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedData.getServer());
+            OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(selectedChannels);
             builder.parallelize(nThreads)
-                    .tileSize(512)
+                    .tileSize(tileSize)
                     .region(region)
-                    .downsamples(1, 2);
+                    .downsamples(downsamples);
 
             // process all slices
             if (!process3d)
